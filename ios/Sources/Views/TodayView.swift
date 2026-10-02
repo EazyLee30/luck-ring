@@ -1,61 +1,77 @@
 import SwiftUI
 
+/// Headline screen. Mirrors the structure health apps converge on: pinned
+/// metric shortcuts, the three scores, things needing attention, and a timeline
+/// of what actually happened today.
 struct TodayView: View {
     @ObservedObject var store: HealthStore
+    @State private var pinned: [String] = Shortcut.defaultOrder
+    @State private var showDevice = false
+
+    private var day: DailySnapshot? { store.selectedDay }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 14) {
-                    header
-                    gaugeStrip
-                    if let day = store.selectedDay {
-                        sleepCard(day)
-                            .id("sleep")
+        ScrollView {
+            VStack(spacing: 16) {
+                header
+
+                if store.orderedDays.isEmpty {
+                    emptyState
+                } else {
+                    shortcutRow
+                    if let day {
+                        scoreStrip
+                        actionItems
+                        if let sleep = day.sleep { sleepCard(day, sleep) }
                         readinessCard(day)
-                            .id("readiness")
                         activityCard(day)
-                            .id("activity")
                         vitalsCard(day)
-                            .id("vitals")
                         heartRateCard(day)
-                            .id("heart")
-                        sleepStagesCard(day)
-                            .id("stages")
-                    } else {
-                        emptyState
+                        timelineCard(day)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
             }
-            .background(Palette.bg.ignoresSafeArea())
-            .refreshable { store.refresh() }
-            .onAppear {
-                guard TodayView.launchAnchor == .middle else { return }
-                DispatchQueue.main.async {
-                    withAnimation(.none) { proxy.scrollTo("vitals", anchor: .top) }
-                }
-            }
+            .padding(.bottom, 28)
         }
+        .background(Palette.bg.ignoresSafeArea())
+        .refreshable { store.refresh() }
+        .sheet(isPresented: $showDevice) { DeviceSheet(store: store) }
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(greeting)
-                    .font(.metric(22))
+                    .font(.metric(24))
                     .foregroundStyle(Palette.textPrimary)
-                Text(store.selectedDay.map { Fmt.dayTitle($0.date) } ?? "No data yet")
+                Text(day.map { Fmt.dayTitle($0.date) } ?? "No data")
                     .font(.label(13))
                     .foregroundStyle(Palette.textSecondary)
             }
             Spacer()
-            RingStatusPill(store: store)
+            Button { showDevice = true } label: {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "circle.dotted.circle")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(Palette.textSecondary)
+                    if let b = store.batteryPercent {
+                        Text("\(b)")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Palette.bg)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(batteryTint(b), in: Capsule())
+                            .offset(x: 8, y: -4)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ring and device settings")
         }
-        .padding(.top, 6)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
 
     private var greeting: String {
@@ -66,66 +82,163 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Gauges
+    // MARK: - Shortcuts
 
-    private var gaugeStrip: some View {
+    private var shortcutRow: some View {
+        let catalogue = Shortcut.catalogue(days: store.days, goals: store.goals)
+        let shown = pinned.compactMap { id in catalogue.first { $0.id == id } }
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(shown) { s in
+                    Button { store.select(day: nil) } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: s.symbol)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(s.tint)
+                                Spacer()
+                            }
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(s.value)
+                                    .font(.score(23))
+                                    .foregroundStyle(Palette.textPrimary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
+                                Text(s.caption)
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(Palette.textTertiary)
+                            }
+                            Text(s.title)
+                                .font(.label(12))
+                                .foregroundStyle(Palette.textSecondary)
+                                .lineLimit(1)
+                        }
+                        .frame(width: 108, height: 106, alignment: .topLeading)
+                        .padding(12)
+                        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(Palette.stroke, lineWidth: 1))
+                        .overlay(alignment: .top) {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(s.tint.opacity(0.4), lineWidth: 1)
+                                .mask(LinearGradient(colors: [.black, .clear],
+                                                     startPoint: .top, endPoint: .bottom)
+                                    .frame(height: 64))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - Score strip
+
+    private var scoreStrip: some View {
         HStack(spacing: 10) {
-            ScoreGauge(score: store.sleepScore?.total ?? 0,
-                       tint: Palette.sleep, size: 104, lineWidth: 8, label: "sleep")
-            ScoreGauge(score: store.readinessScore?.total ?? 0,
-                       tint: Palette.readiness, size: 104, lineWidth: 8, label: "ready")
-            ScoreGauge(score: store.activityScore?.total ?? 0,
-                       tint: Palette.activity, size: 104, lineWidth: 8, label: "active")
+            ScoreGauge(score: store.sleepScore?.total ?? 0, tint: Palette.sleep,
+                       size: 100, lineWidth: 8, label: "sleep")
+            ScoreGauge(score: store.readinessScore?.total ?? 0, tint: Palette.readiness,
+                       size: 100, lineWidth: 8, label: "ready")
+            ScoreGauge(score: store.activityScore?.total ?? 0, tint: Palette.activity,
+                       size: 100, lineWidth: 8, label: "active")
         }
         .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Action items
+
+    private var actionItems: some View {
+        let items = Insights.actionItems(days: store.days, connection: store.connection,
+                                         battery: store.batteryPercent, streaming: store.isStreaming, goals: store.goals)
+        return Group {
+            if !items.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("NEEDS ATTENTION")
+                        .font(.system(size: 10, weight: .bold))
+                        .tracking(1)
+                        .foregroundStyle(Palette.textTertiary)
+                        .padding(.horizontal, 16)
+                    ForEach(items) { item in
+                        HStack(alignment: .top, spacing: 11) {
+                            Image(systemName: item.symbol)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(item.tint)
+                                .frame(width: 26, height: 26)
+                                .background(item.tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 8))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .font(.metric(14))
+                                    .foregroundStyle(Palette.textPrimary)
+                                Text(item.detail)
+                                    .font(.label(11))
+                                    .foregroundStyle(Palette.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(12)
+                        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(item.tint.opacity(0.28), lineWidth: 1))
+                        .padding(.horizontal, 16)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Sleep
 
-    private func sleepCard(_ day: DailySnapshot) -> some View {
-        let score = store.sleepScore ?? ScoreEngine.SleepBreakdown(total: 0, durationPoints: 0, efficiencyPoints: 0, deepPoints: 0, timingPoints: 0)
+    private func sleepCard(_ day: DailySnapshot, _ sleep: SleepSession) -> some View {
+        let score = store.sleepScore ?? ScoreEngine.SleepBreakdown(
+            total: 0, durationPoints: 0, efficiencyPoints: 0, deepPoints: 0, timingPoints: 0)
         let verdict = ScoreVerdict.sleep(score.total)
 
         return Card(tint: Palette.sleep) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 15) {
                 SectionHeader(title: "Sleep", icon: "bed.double.fill", tint: Palette.sleep)
 
-                ScoreRow(score: score.total, tint: Palette.sleep,
-                         title: "score", verdict: verdict.title, detail: verdict.detail)
+                ScoreHero(score: score.total, verdict: verdict.title, detail: verdict.detail,
+                          tint: Palette.sleep,
+                          delta: store.scoreDelta(.sleep, current: score.total))
 
-                if let sleep = day.sleep {
-                    StatRow(title: "Time asleep",
-                            value: Fmt.duration(sleep.asleep),
-                            tint: Palette.sleep,
-                            progress: min(1, sleep.asleep / (Double(store.goals.sleepTargetMinutes) * 60)))
-                    StatRow(title: "Time in bed", value: Fmt.duration(sleep.duration), tint: Palette.textPrimary)
-                    StatRow(title: "Efficiency", value: Fmt.percent(sleep.efficiency),
-                            tint: efficiencyTint(sleep.efficiency))
-                    StatRow(title: "Deep sleep", value: Fmt.duration(sleep.time(.deep)),
-                            tint: Palette.sleepDeep)
-                    StatRow(title: "REM", value: Fmt.duration(sleep.time(.rem)), tint: Palette.hrv)
-                    StatRow(title: "Awake", value: Fmt.duration(sleep.time(.awake)), tint: Palette.warn)
+                MetricRow(title: "Time asleep", value: Fmt.duration(sleep.asleep),
+                          tint: Palette.sleep,
+                          progress: min(1, sleep.asleep / Double(store.goals.sleepTargetMinutes * 60)))
+                MetricRow(title: "Time in bed", value: Fmt.duration(sleep.duration))
+                MetricRow(title: "Efficiency", value: Fmt.percent(sleep.efficiency),
+                          tint: efficiencyTint(sleep.efficiency))
+                MetricRow(title: "Deep sleep", value: Fmt.duration(sleep.time(.deep)),
+                          tint: Palette.sleepDeep)
+                MetricRow(title: "REM", value: Fmt.duration(sleep.time(.rem)), tint: Palette.hrv)
+                MetricRow(title: "Awake", value: Fmt.duration(sleep.time(.awake)), tint: Palette.warn)
 
-                    HStack(spacing: 8) {
-                        Chip(text: "BED \(Fmt.clock(sleep.start))", tint: Palette.sleep)
-                        Chip(text: "UP \(Fmt.clock(sleep.end))", tint: Palette.sleep)
-                        Chip(text: sleep.sleepScoreBand.uppercased(), tint: efficiencyTint(sleep.efficiency))
-                    }
-                } else {
-                    Text("No sleep data for this day.")
-                        .font(.label(13))
-                        .foregroundStyle(Palette.textTertiary)
+                HStack(spacing: 8) {
+                    Chip(text: "BED \(Fmt.clock(sleep.start))", tint: Palette.sleep)
+                    Chip(text: "UP \(Fmt.clock(sleep.end))", tint: Palette.sleep)
+                    Chip(text: sleep.sleepScoreBand.uppercased(),
+                         tint: efficiencyTint(sleep.efficiency))
                 }
 
-                contributionBar(title: "Score contributions",
-                                parts: [
-                                    (score.durationPoints, 40, Palette.sleep, "duration"),
-                                    (score.efficiencyPoints, 25, Palette.readiness, "efficiency"),
-                                    (score.deepPoints, 20, Palette.sleepDeep, "deep"),
-                                    (score.timingPoints, 15, Palette.hrv, "timing"),
-                                ])
+                Divider().overlay(Palette.stroke)
+                StageBreakdown(sleep: sleep)
+
+                Divider().overlay(Palette.stroke)
+                ContributionStrip(parts: [
+                    .init(points: score.durationPoints, max: 40, tint: Palette.sleep, label: "duration"),
+                    .init(points: score.efficiencyPoints, max: 25, tint: Palette.readiness, label: "efficiency"),
+                    .init(points: score.deepPoints, max: 20, tint: Palette.sleepDeep, label: "deep"),
+                    .init(points: score.timingPoints, max: 15, tint: Palette.hrv, label: "timing"),
+                ])
             }
+            .padding(.horizontal, 16)
         }
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Readiness
@@ -134,38 +247,47 @@ struct TodayView: View {
         let score = store.readinessScore ?? ScoreEngine.ReadinessBreakdown(
             total: 0, sleepPoints: 0, hrvPoints: 0, restingHRPoints: 0, temperaturePoints: 0)
         let verdict = ScoreVerdict.readiness(score.total)
+        let base = store.baseline
 
         return Card(tint: Palette.readiness) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 15) {
                 SectionHeader(title: "Readiness", icon: "bolt.heart.fill", tint: Palette.readiness)
 
-                ScoreRow(score: score.total, tint: Palette.readiness,
-                         title: "score", verdict: verdict.title, detail: verdict.detail)
+                ScoreHero(score: score.total, verdict: verdict.title, detail: verdict.detail,
+                          tint: Palette.readiness,
+                          delta: store.scoreDelta(.readiness, current: score.total))
 
-                StatRow(title: "Resting heart rate",
-                        value: day.restingHeartRate.map(String.init) ?? "—",
-                        unit: "bpm", tint: Palette.heart,
-                        progress: day.restingHeartRate.map { min(1, Double($0) / 100) })
-                StatRow(title: "HRV",
-                        value: day.averageHRV.map(String.init) ?? "—",
-                        unit: "ms", tint: Palette.hrv,
-                        progress: day.averageHRV.map { min(1, Double($0) / 80) })
+                MetricRow(title: "Resting heart rate",
+                          value: day.restingHeartRate.map(String.init) ?? "—", unit: "bpm",
+                          tint: Palette.heart,
+                          progress: day.restingHeartRate.map { min(1, Double($0) / 100) },
+                          delta: day.restingHeartRate.flatMap { r in
+                              base?.averageRestingHR.map { r - $0 } })
 
-                if let delta = day.temperatureDelta(baseline: store.baseline?.averageSkinTemp) {
-                    StatRow(title: "Temperature",
-                            value: Fmt.signed(delta), unit: "°C vs baseline",
-                            tint: abs(delta) > 0.5 ? Palette.warn : Palette.temp)
+                MetricRow(title: "HRV",
+                          value: day.averageHRV.map(String.init) ?? "—", unit: "ms",
+                          tint: Palette.hrv,
+                          progress: day.averageHRV.map { min(1, Double($0) / 80) },
+                          delta: day.averageHRV.flatMap { v in
+                              base?.averageHRV.map { v - $0 } })
+
+                if let delta = day.temperatureDelta(baseline: base?.averageSkinTemp) {
+                    MetricRow(title: "Skin temperature",
+                              value: Fmt.signed(delta), unit: "°C vs baseline",
+                              tint: abs(delta) > 0.5 ? Palette.warn : Palette.temp)
                 }
 
-                contributionBar(title: "Score contributions",
-                                parts: [
-                                    (score.sleepPoints, 50, Palette.sleep, "sleep"),
-                                    (score.hrvPoints, 25, Palette.hrv, "HRV"),
-                                    (score.restingHRPoints, 15, Palette.heart, "RHR"),
-                                    (score.temperaturePoints, 10, Palette.temp, "temp"),
-                                ])
+                Divider().overlay(Palette.stroke)
+                ContributionStrip(parts: [
+                    .init(points: score.sleepPoints, max: 50, tint: Palette.sleep, label: "sleep"),
+                    .init(points: score.hrvPoints, max: 25, tint: Palette.hrv, label: "HRV"),
+                    .init(points: score.restingHRPoints, max: 15, tint: Palette.heart, label: "RHR"),
+                    .init(points: score.temperaturePoints, max: 10, tint: Palette.temp, label: "temp"),
+                ])
             }
+            .padding(.horizontal, 16)
         }
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Activity
@@ -174,78 +296,87 @@ struct TodayView: View {
         let score = store.activityScore ?? ScoreEngine.ActivityBreakdown(
             total: 0, stepsPoints: 0, caloriesPoints: 0, activeTimePoints: 0)
         let verdict = ScoreVerdict.activity(score.total)
+        let a = day.activity
 
         return Card(tint: Palette.activity) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 15) {
                 SectionHeader(title: "Activity", icon: "figure.walk.motion", tint: Palette.activity)
 
-                ScoreRow(score: score.total, tint: Palette.activity,
-                         title: "score", verdict: verdict.title, detail: verdict.detail)
+                ScoreHero(score: score.total, verdict: verdict.title, detail: verdict.detail,
+                          tint: Palette.activity,
+                          delta: store.scoreDelta(.activity, current: score.total))
 
-                if let a = day.activity {
-                    StatRow(title: "Steps", value: "\(a.steps)",
-                            tint: Palette.activity,
-                            progress: min(1, Double(a.steps) / Double(store.goals.stepTarget)))
-                    StatRow(title: "Distance",
-                            value: Fmt.distance(a.distanceMetres),
-                            unit: Fmt.distanceUnit(a.distanceMetres),
-                            tint: Palette.activity)
-                    StatRow(title: "Active time",
-                            value: Fmt.duration(TimeInterval(a.activeSeconds)),
-                            tint: Palette.activity,
-                            progress: min(1, Double(a.activeSeconds) / Double(store.goals.activeMinutesTarget * 60)))
-                    StatRow(title: "Active calories", value: "\(a.calories)",
-                            unit: "kcal", tint: Palette.activity,
-                            progress: min(1, Double(a.calories) / 500))
-
-                    HStack(spacing: 8) {
-                        Chip(text: "\(a.totalCalories) KCAL TOTAL", tint: Palette.activity)
-                        Chip(text: "\(Int(Double(a.steps) / 1000.0 * 10) / 10)K STEPS", tint: Palette.activity)
+                if let a {
+                    HStack(spacing: 14) {
+                        ProgressRing(progress: Double(a.steps) / Double(max(1, store.goals.stepTarget)),
+                                     tint: Palette.activity, size: 66, lineWidth: 6,
+                                     value: "\(a.steps)", caption: "steps")
+                        ProgressRing(progress: Double(a.calories) / 500,
+                                     tint: Palette.activity, size: 66, lineWidth: 6,
+                                     value: "\(a.calories)", caption: "kcal")
+                        ProgressRing(progress: Double(a.activeSeconds)
+                                        / Double(max(1, store.goals.activeMinutesTarget * 60)),
+                                     tint: Palette.activity, size: 66, lineWidth: 6,
+                                     value: Fmt.duration(TimeInterval(a.activeSeconds)),
+                                     caption: "active")
                     }
-                }
+                    .frame(maxWidth: .infinity)
 
-                contributionBar(title: "Score contributions",
-                                parts: [
-                                    (score.stepsPoints, 50, Palette.activity, "steps"),
-                                    (score.caloriesPoints, 30, Palette.activity, "calories"),
-                                    (score.activeTimePoints, 20, Palette.activity, "active time"),
-                                ])
+                    MetricRow(title: "Distance",
+                              value: Fmt.distance(a.distanceMetres),
+                              unit: Fmt.distanceUnit(a.distanceMetres))
+                    MetricRow(title: "Total calories", value: "\(a.totalCalories)", unit: "kcal")
+
+                    Divider().overlay(Palette.stroke)
+                    ContributionStrip(parts: [
+                        .init(points: score.stepsPoints, max: 50, tint: Palette.activity, label: "steps"),
+                        .init(points: score.caloriesPoints, max: 30, tint: Palette.activity, label: "calories"),
+                        .init(points: score.activeTimePoints, max: 20, tint: Palette.activity, label: "active time"),
+                    ])
+                } else {
+                    Text("No movement data yet for this day.")
+                        .font(.label(13))
+                        .foregroundStyle(Palette.textTertiary)
+                }
             }
+            .padding(.horizontal, 16)
         }
+        .padding(.horizontal, 16)
     }
 
-    // MARK: - Vitals summary
+    // MARK: - Vitals
 
     private func vitalsCard(_ day: DailySnapshot) -> some View {
-        Card(tint: Palette.oxygen) {
+        Card {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: "Vitals", icon: "waveform.path.ecg", tint: Palette.oxygen)
 
                 if let bp = day.latestBloodPressure {
-                    StatRow(title: "Blood pressure",
-                            value: "\(bp.systolic)/\(bp.diastolic)",
-                            unit: "mmHg", tint: Palette.pressure)
+                    MetricRow(title: "Blood pressure",
+                              value: "\(bp.systolic)/\(bp.diastolic)", unit: "mmHg",
+                              tint: Palette.pressure)
                 }
-                StatRow(title: "Blood oxygen",
-                        value: day.averageOxygen.map { "\($0)" } ?? "—",
-                        unit: "%", tint: Palette.oxygen,
-                        progress: day.averageOxygen.map { min(1, Double($0) / 100) })
-                StatRow(title: "HRV (avg)",
-                        value: day.averageHRV.map { "\($0)" } ?? "—",
-                        unit: "ms", tint: Palette.hrv)
+                MetricRow(title: "Blood oxygen",
+                          value: day.averageOxygen.map { "\($0)" } ?? "—", unit: "%",
+                          tint: Palette.oxygen,
+                          progress: day.averageOxygen.map { min(1, Double($0) / 100) })
+                MetricRow(title: "Heart-rate readings", value: "\(day.heartRate.count)",
+                          unit: "samples", tint: Palette.textSecondary)
 
-                Text("Live readings are taken on demand from the ring tab.")
+                Text("On-demand measurements live in the ring sheet.")
                     .font(.label(11))
                     .foregroundStyle(Palette.textTertiary)
             }
+            .padding(.horizontal, 16)
         }
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Heart rate
 
     private func heartRateCard(_ day: DailySnapshot) -> some View {
         Card(tint: Palette.heart) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 13) {
                 SectionHeader(title: "Heart rate", icon: "heart.fill", tint: Palette.heart)
 
                 HStack(spacing: 10) {
@@ -257,16 +388,18 @@ struct TodayView: View {
                              unit: "bpm", tint: Palette.warn)
                 }
 
-                if day.heartRate.count > 2 {
+                if day.heartRate.count > 2, let first = day.heartRate.first,
+                   let last = day.heartRate.last {
                     Sparkline(values: day.heartRate.map { Double($0.bpm) },
-                              tint: Palette.heart, baseline: day.restingHeartRate.map(Double.init))
+                              tint: Palette.heart,
+                              baseline: day.restingHeartRate.map(Double.init))
                         .frame(height: 64)
                     HStack {
-                        Text(Fmt.clock(day.heartRate.first!.time))
+                        Text(Fmt.clock(first.time))
                         Spacer()
                         Text("\(day.heartRate.count) readings")
                         Spacer()
-                        Text(Fmt.clock(day.heartRate.last!.time))
+                        Text(Fmt.clock(last.time))
                     }
                     .font(.label(10))
                     .foregroundStyle(Palette.textTertiary)
@@ -276,143 +409,93 @@ struct TodayView: View {
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
+            .padding(.horizontal, 16)
         }
+        .padding(.horizontal, 16)
     }
 
-    // MARK: - Sleep stages
+    // MARK: - Timeline
 
-    private func sleepStagesCard(_ day: DailySnapshot) -> some View {
-        Card(tint: Palette.sleep) {
+    private func timelineCard(_ day: DailySnapshot) -> some View {
+        let events = Insights.events(for: day)
+
+        return Card {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Sleep stages", icon: "chart.bar.fill", tint: Palette.sleep)
+                SectionHeader(title: "Recent events", icon: "clock.arrow.circlepath")
 
-                if let sleep = day.sleep, !sleep.intervals.isEmpty {
-                    StackedBar(segments: [
-                        .init(value: sleep.time(.deep), tint: Palette.sleepDeep, label: "Deep"),
-                        .init(value: sleep.time(.rem), tint: Palette.hrv, label: "REM"),
-                        .init(value: sleep.time(.light), tint: Palette.sleep, label: "Light"),
-                        .init(value: sleep.time(.awake), tint: Palette.warn, label: "Awake"),
-                    ])
-
-                    VStack(spacing: 6) {
-                        LegendItem(label: "Deep", tint: Palette.sleepDeep, value: Fmt.duration(sleep.time(.deep)))
-                        LegendItem(label: "REM", tint: Palette.hrv, value: Fmt.duration(sleep.time(.rem)))
-                        LegendItem(label: "Light", tint: Palette.sleep, value: Fmt.duration(sleep.time(.light)))
-                        LegendItem(label: "Awake", tint: Palette.warn, value: Fmt.duration(sleep.time(.awake)))
-                    }
-                } else {
-                    Text("No stage data.")
+                if events.isEmpty {
+                    Text("Nothing recorded for this day yet.")
                         .font(.label(13))
                         .foregroundStyle(Palette.textTertiary)
-                }
-            }
-        }
-    }
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
+                            HStack(alignment: .top, spacing: 11) {
+                                VStack(spacing: 0) {
+                                    Circle()
+                                        .fill(event.tint)
+                                        .frame(width: 9, height: 9)
+                                    if index < events.count - 1 {
+                                        Rectangle()
+                                            .fill(Palette.stroke)
+                                            .frame(width: 1.5)
+                                            .frame(maxHeight: .infinity)
+                                    }
+                                }
+                                .frame(width: 9)
 
-    // MARK: - Pieces
-
-    private func contributionBar(title: String,
-                                 parts: [(points: Int, max: Int, tint: Color, label: String)]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .bold))
-                .tracking(0.9)
-                .foregroundStyle(Palette.textTertiary)
-
-            StackedBar(segments: parts.map {
-                .init(value: Double($0.points), tint: $0.tint, label: $0.label)
-            }, height: 8)
-
-            HStack(spacing: 10) {
-                ForEach(parts, id: \.label) { part in
-                    HStack(spacing: 4) {
-                        Circle().fill(part.tint).frame(width: 6, height: 6)
-                        Text("\(part.label) \(part.points)/\(part.max)")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(Palette.textTertiary)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    HStack {
+                                        Text(event.title)
+                                            .font(.metric(14))
+                                            .foregroundStyle(Palette.textPrimary)
+                                        Spacer()
+                                        Text(Fmt.clock(event.time))
+                                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(Palette.textTertiary)
+                                    }
+                                    Text(event.detail)
+                                        .font(.label(11))
+                                        .foregroundStyle(Palette.textSecondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .padding(.bottom, 14)
+                            }
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
             }
+            .padding(.horizontal, 16)
         }
+        .padding(.horizontal, 16)
     }
+
+    // MARK: - Helpers
 
     private func efficiencyTint(_ v: Double) -> Color {
         v >= 0.9 ? Palette.good : v >= 0.8 ? Palette.warn : Palette.bad
     }
 
+    private func batteryTint(_ level: Int) -> Color {
+        level > 40 ? Palette.good : level > 15 ? Palette.warn : Palette.bad
+    }
+
     private var emptyState: some View {
         Card {
             VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(title: "No data")
-                Text("Pair your ring from the Ring tab, then pull to refresh. History that the ring already holds is streamed once the sensor switch is on.")
+                SectionHeader(title: "No data yet")
+                Text("Tap the ring icon to pair your ring, then pull down to refresh. History the ring already holds is uploaded once the sensor switch is on.")
                     .font(.label(13))
                     .foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                Button("Open ring sheet") { showDevice = true }
+                    .font(.label(14))
+                    .buttonStyle(.bordered)
+                    .tint(Palette.sleep)
             }
+            .padding(.horizontal, 16)
         }
-    }
-}
-
-// MARK: - Status pill
-
-struct RingStatusPill: View {
-    @ObservedObject var store: HealthStore
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(store.connection.isLive ? Palette.good : Palette.textTertiary)
-                .frame(width: 7, height: 7)
-            Text(store.connection.label)
-                .font(.label(11))
-                .foregroundStyle(Palette.textSecondary)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Palette.surface, in: Capsule())
-        .overlay(Capsule().strokeBorder(Palette.stroke, lineWidth: 1))
-    }
-}
-
-// MARK: - Sparkline
-
-struct Sparkline: View {
-    let values: [Double]
-    var tint: Color
-    var baseline: Double?
-
-    var body: some View {
-        GeometryReader { geo in
-            let minV = values.min() ?? 0
-            let maxV = values.max() ?? 1
-            let span = max(1, maxV - minV)
-
-            ZStack {
-                if let baseline {
-                    let y = geo.size.height * (1 - (baseline - minV) / span)
-                    Path { p in
-                        p.move(to: CGPoint(x: 0, y: y))
-                        p.addLine(to: CGPoint(x: geo.size.width, y: y))
-                    }
-                    .stroke(Palette.textTertiary.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                }
-
-                Path { path in
-                    guard values.count > 1 else { return }
-                    let step = geo.size.width / CGFloat(values.count - 1)
-                    for (i, v) in values.enumerated() {
-                        let x = CGFloat(i) * step
-                        let y = geo.size.height * (1 - (v - minV) / span)
-                        i == 0 ? path.move(to: CGPoint(x: x, y: y))
-                               : path.addLine(to: CGPoint(x: x, y: y))
-                    }
-                }
-                .stroke(
-                    LinearGradient(colors: [tint.opacity(0.4), tint], startPoint: .leading, endPoint: .trailing),
-                    style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
-                )
-            }
-        }
+        .padding(.horizontal, 16)
     }
 }

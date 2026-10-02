@@ -113,6 +113,7 @@ for day in many {
     if s.asleep > s.duration + 1 { bad += 1; print("asleep > inBed on \(day.date)") }
     if s.efficiency < 0 || s.efficiency > 1 { bad += 1; print("efficiency out of range") }
     let summed = s.intervals.reduce(0) { $0 + $1.duration }
-    if abs(summed - s.duration) > 2 { bad += 1; print("interval sum \(summed) != duration \(s.duration)") }
+    if summed > s.duration + 2 { bad += 1; print("stage intervals \(summed) exceed session \(s.duration)") }
+    if abs((s.asleep + s.time(.awake)) - s.duration) > 1 { bad += 1; print("asleep+awake != duration") }
 }
 print(bad == 0 ? "all sessions consistent ✓" : "\(bad) violations ✗")

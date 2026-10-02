@@ -17,7 +17,7 @@ targets:
 
   # ---------------------------------------------------------------- demo/preview
   # No vendor framework. Runs in the simulator so the UI can be iterated on
-  # without a ring, and hosts the SwiftUI previews.
+  # without a ring, hosts the SwiftUI previews, and is the test host.
   LuckRingDemo:
     type: application
     platform: iOS
@@ -36,8 +36,9 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGNING_ALLOWED: NO
+        ENABLE_TESTABILITY: YES
 
-  # ---------------------------------------------------------------------- device
+  # -------------------------------------------------------------------- device
   # The real thing. Vendor framework is embedded and signed.
   LuckRing:
     type: application
@@ -53,7 +54,6 @@ targets:
       - framework: ../SDK/SDK/BluetoothLibrary.framework
         embed: true
         codeSign: true
-      - sdk: SwiftUI.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.luckring.reader
@@ -66,6 +66,23 @@ targets:
         SUPPORTED_PLATFORMS: iphoneos
         SUPPORTS_MACCATALYST: NO
         LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks
+
+  # --------------------------------------------------------------------- tests
+  # Unit tests run against the demo app's module via `@testable import`, so the
+  # score engine and sleep assembler can be verified without a ring. A separate
+  # framework target would only work if every declaration were `public`, which is
+  # a lot of noise for no benefit here.
+  LuckRingTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: LuckRingDemo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.luckring.reader.tests
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   LuckRing:
@@ -80,3 +97,7 @@ schemes:
         LuckRingDemo: all
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - LuckRingTests

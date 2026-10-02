@@ -385,3 +385,224 @@ enum Fmt {
         String(format: "%+.1f", v)
     }
 }
+// MARK: - Delta
+
+/// Change against the wearer's own baseline. Direction is coloured, not just the
+/// value — an HRV that fell 8 ms reads differently from one that rose 8 ms.
+struct DeltaChip: View {
+    let delta: Int
+    var unit: String = ""
+    var higherIsBetter: Bool = true
+
+    private var isFlat: Bool { delta == 0 }
+    private var tint: Color {
+        if isFlat { return Palette.textTertiary }
+        return (higherIsBetter ? delta > 0 : delta < 0) ? Palette.good : Palette.bad
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: isFlat ? "minus" : (delta > 0 ? "arrow.up.right" : "arrow.down.right"))
+                .font(.system(size: 9, weight: .bold))
+            Text(isFlat ? "avg" : "\(abs(delta))\(unit)")
+                .font(.system(size: 11, weight: .semibold))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(tint.opacity(0.13), in: Capsule())
+        .accessibilityLabel(isFlat ? "at baseline"
+                                  : "\(abs(delta)) \(unit) \(delta > 0 ? "above" : "below") baseline")
+    }
+}
+
+// MARK: - Progress ring
+
+/// Small gauge for sub-metrics (steps, calories, active time).
+struct ProgressRing: View {
+    let progress: Double
+    let tint: Color
+    var size: CGFloat = 54
+    var lineWidth: CGFloat = 5
+    var value: String?
+    var caption: String?
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(tint.opacity(0.16), lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: max(0, min(1, progress)))
+                .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 0.6), value: progress)
+            VStack(spacing: 0) {
+                if let value {
+                    Text(value)
+                        .font(.system(size: size * 0.25, weight: .bold, design: .rounded))
+                        .foregroundStyle(Palette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.55)
+                }
+                if let caption {
+                    Text(caption)
+                        .font(.system(size: size * 0.14, weight: .medium))
+                        .foregroundStyle(Palette.textTertiary)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Score hero
+
+/// Heads each score card: oversized score, verdict word, optional delta vs the
+/// wearer's 7-day average.
+struct ScoreHero: View {
+    let score: Int
+    let verdict: String
+    let detail: String
+    let tint: Color
+    var delta: Int?
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("\(score)")
+                        .font(.score(46))
+                        .foregroundStyle(
+                            LinearGradient(colors: [Palette.textPrimary, tint.opacity(0.8)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .contentTransition(.numericText())
+                    if let delta { DeltaChip(delta: delta) }
+                }
+                Text(verdict)
+                    .font(.metric(21))
+                    .foregroundStyle(tint)
+                Text(detail)
+                    .font(.label(12))
+                    .foregroundStyle(Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+// MARK: - Metric row
+
+/// Label / value / unit with an optional bar and baseline delta.
+struct MetricRow: View {
+    let title: String
+    let value: String
+    var unit: String?
+    var tint: Color = Palette.textPrimary
+    var progress: Double?
+    var delta: Int?
+    var deltaUnit: String = ""
+    var higherIsBetter: Bool = true
+
+    var body: some View {
+        VStack(spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(title)
+                    .font(.label(13))
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text(value)
+                    .font(.metric(17))
+                    .foregroundStyle(tint)
+                    .lineLimit(1)
+                    .contentTransition(.numericText())
+                if let unit {
+                    Text(unit)
+                        .font(.label(11))
+                        .foregroundStyle(Palette.textTertiary)
+                }
+                if let delta {
+                    DeltaChip(delta: delta, unit: deltaUnit, higherIsBetter: higherIsBetter)
+                }
+            }
+            if let progress {
+                Bar(progress: progress, tint: tint, height: 4)
+            }
+        }
+    }
+}
+
+// MARK: - Contribution strip
+
+/// How the score was assembled: one labelled slice per term.
+struct ContributionStrip: View {
+    struct Part: Identifiable {
+        let id = UUID()
+        let points: Int
+        let max: Int
+        let tint: Color
+        let label: String
+    }
+
+    let parts: [Part]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text("SCORE CONTRIBUTIONS")
+                .font(.system(size: 10, weight: .bold))
+                .tracking(0.9)
+                .foregroundStyle(Palette.textTertiary)
+
+            StackedBar(segments: parts.map {
+                .init(value: Double($0.points), tint: $0.tint, label: $0.label)
+            }, height: 8)
+
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading),
+                                GridItem(.flexible(), alignment: .leading)],
+                      alignment: .leading, spacing: 6) {
+                ForEach(parts) { part in
+                    HStack(spacing: 5) {
+                        Circle().fill(part.tint).frame(width: 6, height: 6)
+                        Text(part.label)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(Palette.textTertiary)
+                            .lineLimit(1)
+                        Text("\(part.points)/\(part.max)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Palette.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Stage breakdown
+
+/// Sleep-stage composition with a proportional bar and a percentage legend.
+struct StageBreakdown: View {
+    let sleep: SleepSession
+
+    private var segments: [(stage: SleepStage, seconds: TimeInterval, color: Color)] {
+        [(.deep, sleep.time(.deep), Palette.sleepDeep),
+         (.rem, sleep.time(.rem), Palette.hrv),
+         (.light, sleep.time(.light), Palette.sleep),
+         (.awake, sleep.time(.awake), Palette.warn)]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            StackedBar(segments: segments.filter { $0.seconds > 0 }
+                .map { StackedBar.Segment(value: $0.seconds, tint: $0.color, label: $0.stage.title) })
+
+            VStack(spacing: 7) {
+                ForEach(Array(segments.enumerated()), id: \.offset) { _, entry in
+                    let pct = sleep.duration > 0 ? Int(entry.seconds / sleep.duration * 100) : 0
+                    LegendItem(label: entry.stage.title, tint: entry.color,
+                               value: "\(Fmt.duration(entry.seconds))  ·  \(pct)%")
+                }
+            }
+        }
+    }
+}

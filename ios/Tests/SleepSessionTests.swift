@@ -1,5 +1,5 @@
 import XCTest
-@testable import LuckRingKit
+@testable import LuckRingDemo
 
 /// Sleep sessions are rebuilt from a flat transition list. This is where the two
 /// real bugs in the first version lived, so it gets exercised hard.
@@ -92,7 +92,9 @@ final class SleepSessionTests: XCTestCase {
         XCTAssertEqual(session!.time(.deep), 5 * 3600, accuracy: 0.5, "zero-length interval must be dropped")
     }
 
-    func testStageIntervalsSumToSessionDuration() {
+    /// Stage intervals cover the classified part of the night, which is at most
+    /// the whole session: the device never reports the moment of falling asleep.
+    func testStageIntervalsNeverExceedSessionDuration() {
         let b = tonight.addingTimeInterval(22.8 * 3600)
         let session = SleepSession.assemble(from: [
             SleepTransition(time: b, stage: .start),
@@ -103,7 +105,10 @@ final class SleepSessionTests: XCTestCase {
             SleepTransition(time: t(7.2, from: b), stage: .awake),
         ])!
         let summed = session.intervals.reduce(0) { $0 + $1.duration }
-        XCTAssertEqual(summed, session.duration, accuracy: 0.5)
+        XCTAssertLessThanOrEqual(summed, session.duration + 0.5)
+        // Whatever the stages do not cover is treated as asleep, never as awake.
+        XCTAssertGreaterThan(session.asleep, 0)
+        XCTAssertEqual(session.asleep + session.time(.awake), session.duration, accuracy: 0.5)
     }
 
     // MARK: - Degenerate input
@@ -124,12 +129,46 @@ final class SleepSessionTests: XCTestCase {
         ]))
     }
 
+    /// A trailing SLEEP_WAKEUP is the session close marker and occupies no time,
+    /// so a night with no mid-session arousal is legitimately 100% efficient.
+    func testNightWithoutMidSessionAwakeIsFullyEfficient() {
+        let b = tonight.addingTimeInterval(23 * 3600)
+        let s = SleepSession.assemble(from: [
+            SleepTransition(time: b, stage: .start),
+            SleepTransition(time: t(2, from: b), stage: .deep),
+            SleepTransition(time: t(8, from: b), stage: .light),
+            SleepTransition(time: t(8, from: b), stage: .awake),
+        ])!
+        XCTAssertEqual(s.time(.awake), 0, accuracy: 0.5, "the close marker is not an awake period")
+        XCTAssertEqual(s.efficiency, 1.0, accuracy: 0.01)
+    }
+
+    /// A stage transition holds until the *next* one, so a single arousal marker
+    /// means "awake from here until we drop back into a stage".
+    func testAwakeRunsUntilTheNextStageTransition() {
+        let b = tonight.addingTimeInterval(23 * 3600)
+        let s = SleepSession.assemble(from: [
+            SleepTransition(time: b, stage: .start),
+            SleepTransition(time: t(2, from: b), stage: .deep),
+            SleepTransition(time: t(3, from: b), stage: .awake),
+            SleepTransition(time: t(4, from: b), stage: .light),
+            SleepTransition(time: t(8, from: b), stage: .awake),
+        ])!
+        XCTAssertEqual(s.time(.awake), 3600, accuracy: 0.5)
+        XCTAssertEqual(s.time(.deep), 3600, accuracy: 0.5)
+        XCTAssertEqual(s.time(.light), 4 * 3600, accuracy: 0.5)
+        XCTAssertLessThan(s.efficiency, 1)
+        XCTAssertEqual(s.asleep, 7 * 3600, accuracy: 0.5)
+    }
+
     func testEfficiencyIsClampedToUnitRange() {
         let b = tonight.addingTimeInterval(23 * 3600)
         let s = SleepSession.assemble(from: [
             SleepTransition(time: b, stage: .start),
             SleepTransition(time: t(2, from: b), stage: .deep),
-            SleepTransition(time: t(8, from: b), stage: .awake),
+            SleepTransition(time: t(3, from: b), stage: .awake),
+            SleepTransition(time: t(8, from: b), stage: .light),
+            SleepTransition(time: t(8.01, from: b), stage: .awake),
         ])!
         XCTAssertTrue((0...1).contains(s.efficiency))
         XCTAssertGreaterThan(s.efficiency, 0)
@@ -174,7 +213,9 @@ final class HealthStoreIngestionTests: XCTestCase {
             .heartRate(HeartRateSample(time: yesterday, bpm: 55)),
         ])
         XCTAssertEqual(store.days.count, 2)
-        XCTAssertEqual(store.days.last?.heartRate.first?.bpm, 55)
+        // `days` is ascending, so yesterday is first and today is last.
+        XCTAssertEqual(store.days.first?.heartRate.first?.bpm, 55)
+        XCTAssertEqual(store.days.last?.heartRate.first?.bpm, 61)
     }
 
     func testDeviceRecordsWithoutTimestampsStillApply() {
@@ -211,15 +252,52 @@ final class HealthStoreIngestionTests: XCTestCase {
 
     func testSleepTransitionsRebuildTheSessionOnEachPacket() {
         let store = makeStore()
-        let base = cal.startOfDay(for: Date()).addingTimeInterval(23 * 3600)
+        let base = Calendar.current.startOfDay(for: Date()).addingTimeInterval(23 * 3600)
         store.ingest([.sleepTransition(base, .start)])
-        store.ingest([.sleepTransition(base.addingTimeInterval(3600), .deep)])
-        XCTAssertNotNil(store.days.first?.sleep)
+        // A lone start marker is not a session yet: there is no stage and no end.
+        XCTAssertNil(store.days.first?.sleep)
 
+        store.ingest([.sleepTransition(base.addingTimeInterval(3600), .deep)])
         store.ingest([.sleepTransition(base.addingTimeInterval(7 * 3600), .awake)])
         let sleep = store.days.first?.sleep
         XCTAssertNotNil(sleep)
         XCTAssertEqual(sleep!.duration, 7 * 3600, accuracy: 1)
+    }
+
+    /// Regression: a night starting before midnight used to be split across two
+    /// day buckets, so no session ever assembled and every night read as missing.
+    func testNightCrossingMidnightStaysInOneBucket() {
+        let store = makeStore()
+        let base = Calendar.current.startOfDay(for: Date()).addingTimeInterval(23.5 * 3600)
+        let afterMidnight = base.addingTimeInterval(3600)      // 00:30 next day
+
+        store.ingest([.sleepTransition(base, .start)])
+        store.ingest([.sleepTransition(afterMidnight, .deep)])
+        store.ingest([.sleepTransition(afterMidnight.addingTimeInterval(6 * 3600), .awake)])
+
+        XCTAssertEqual(store.days.count, 1, "one night must produce exactly one bucket")
+        let sleep = store.days.first?.sleep
+        XCTAssertNotNil(sleep)
+        XCTAssertEqual(sleep!.duration, 7 * 3600, accuracy: 1)
+        XCTAssertEqual(sleep!.time(.deep), 6 * 3600, accuracy: 1)
+    }
+
+    func testTwoNightsProduceTwoBuckets() {
+        let store = makeStore()
+        let cal = Calendar.current
+        let night1 = cal.startOfDay(for: Date()).addingTimeInterval(23 * 3600)
+        let night2 = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date()))!
+            .addingTimeInterval(23 * 3600)
+
+        store.ingest([.sleepTransition(night1, .start)])
+        store.ingest([.sleepTransition(night1.addingTimeInterval(7 * 3600), .awake)])
+        store.ingest([.sleepTransition(night2, .start)])
+        store.ingest([.sleepTransition(night2.addingTimeInterval(7 * 3600), .awake)])
+
+        XCTAssertEqual(store.days.count, 2)
+        for day in store.days {
+            XCTAssertEqual(day.sleep?.duration ?? 0, 7 * 3600, accuracy: 1)
+        }
     }
 
     func testDemoDataSatisfiesInvariants() {
@@ -233,7 +311,12 @@ final class HealthStoreIngestionTests: XCTestCase {
                 XCTAssertLessThanOrEqual(s.asleep, s.duration + 1, "asleep exceeded time in bed")
                 XCTAssertTrue((0...1).contains(s.efficiency))
                 let summed = s.intervals.reduce(0) { $0 + $1.duration }
-                XCTAssertEqual(summed, s.duration, accuracy: 2, "stage intervals must fill the session")
+                XCTAssertLessThanOrEqual(summed, s.duration + 2,
+                                         "stage intervals cannot exceed the session")
+                XCTAssertEqual(s.asleep + s.time(.awake), s.duration, accuracy: 1,
+                               "asleep plus awake must account for the whole session")
+                XCTAssertGreaterThan(s.time(.deep), 0, "every generated night has deep sleep")
+                XCTAssertGreaterThan(s.time(.light), 0, "every generated night has light sleep")
             }
             let scores = ScoreEngine.activity(for: d, goals: store.goals).total
             XCTAssertTrue((0...100).contains(scores))

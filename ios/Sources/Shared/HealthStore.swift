@@ -51,23 +51,72 @@ final class HealthStore: ObservableObject {
         orderedDays.first { Calendar.current.isDateInToday($0.date) } ?? orderedDays.first
     }
 
-    var selectedDay: DailySnapshot? { today }
+    /// Which day the UI is showing. nil means "today"; Vitals and Trends set it
+    /// so every score on screen follows the same selection.
+    @Published private(set) var selectedDate: Date?
+
+    var selectedDay: DailySnapshot? {
+        guard let selectedDate else { return today }
+        let cal = Calendar.current
+        return orderedDays.first { cal.isDate($0.date, inSameDayAs: selectedDate) } ?? today
+    }
+
+    var isViewingToday: Bool {
+        guard let selectedDate else { return true }
+        return Calendar.current.isDateInToday(selectedDate)
+    }
+
+    func select(day date: Date?) { selectedDate = date }
 
     private(set) var baseline: Baseline?
 
     var sleepScore: ScoreEngine.SleepBreakdown? {
-        guard let d = today else { return nil }
+        guard let d = selectedDay else { return nil }
         return ScoreEngine.sleep(for: d, goals: goals, baseline: baseline)
     }
 
     var readinessScore: ScoreEngine.ReadinessBreakdown? {
-        guard let d = today, let s = sleepScore else { return nil }
+        guard let d = selectedDay, let s = sleepScore else { return nil }
         return ScoreEngine.readiness(for: d, goals: goals, baseline: baseline, sleepScore: s.total)
     }
 
     var activityScore: ScoreEngine.ActivityBreakdown? {
-        guard let d = today else { return nil }
+        guard let d = selectedDay else { return nil }
         return ScoreEngine.activity(for: d, goals: goals)
+    }
+
+    /// 7-day average of a score, for the delta chips.
+    func averageScore(_ metric: TrendMetric) -> Int? {
+        let values: [Int] = orderedDays.prefix(7).compactMap { day in
+            switch metric {
+            case .sleep:
+                return day.sleep == nil ? nil : ScoreEngine.sleep(for: day, goals: goals, baseline: baseline).total
+            case .readiness:
+                guard day.sleep != nil else { return nil }
+                let s = ScoreEngine.sleep(for: day, goals: goals, baseline: baseline).total
+                return ScoreEngine.readiness(for: day, goals: goals, baseline: baseline, sleepScore: s).total
+            case .activity:
+                return day.activity == nil ? nil : ScoreEngine.activity(for: day, goals: goals).total
+            }
+        }
+        guard values.count >= 2 else { return nil }
+        return values.reduce(0, +) / values.count
+    }
+
+    func scoreDelta(_ metric: TrendMetric, current: Int) -> Int? {
+        guard let avg = averageScore(metric) else { return nil }
+        return current - avg
+    }
+
+    var healthAreas: [HealthArea] { HealthAreaBuilder.build(days: days, goals: goals) }
+
+    /// Whether the ring is currently uploading stored history. Set by the device
+    /// sheet; Today reads it to decide whether to nag about a paused upload.
+    @Published private(set) var isStreaming = false
+
+    func setSensorStreaming(_ on: Bool) {
+        isStreaming = on
+        bridge.setSensorStreaming(on)
     }
 
     /// Seven-day trend of any scored metric.
@@ -111,8 +160,14 @@ final class HealthStore: ObservableObject {
         var touched = Set<Date>()
 
         for record in records {
-            guard let time = record.timestamp else { continue }
-            let dayStart = calendar.startOfDay(for: time)
+            // Device-level records (battery, firmware) carry no timestamp and so
+            // belong to no day. They must still be applied — skipping them here
+            // silently discarded the ring's battery reading.
+            guard let time = record.timestamp else {
+                applyDeviceLevel(record)
+                continue
+            }
+            let dayStart = bucket(for: record, at: time)
 
             if !days.contains(where: { calendar.isDate($0.date, inSameDayAs: dayStart) }) {
                 days.append(DailySnapshot(date: dayStart))
@@ -125,6 +180,31 @@ final class HealthStore: ObservableObject {
         days = Array(days.suffix(120))
         baseline = Baseline.make(from: days)
         lastSync = Date()
+    }
+
+    /// Which midnight a record belongs to.
+    ///
+    /// Everything is bucketed by local midnight except sleep: a night that begins
+    /// at 23:30 has most of its stages after midnight, and bucketing those by
+    /// their own timestamp splits one session across two days — which means the
+    /// night never assembles at all. Sleep transitions therefore stay with the
+    /// day that owns the SLEEP_START.
+    private func bucket(for record: IngestedRecord, at time: Date) -> Date {
+        let calendar = Calendar.current
+
+        guard case .sleepTransition = record else {
+            return calendar.startOfDay(for: time)
+        }
+
+        let ownsNight = days.first { day in
+            guard let start = day.sleepTransitions.first(where: { $0.stage == .start })?.time
+            else { return false }
+            return time >= start && time.timeIntervalSince(start) < 24 * 3600
+        }
+        if let ownsNight { return ownsNight.date }
+
+        // No open session owns this timestamp, so this transition starts a night.
+        return calendar.startOfDay(for: time)
     }
 
     private func apply(_ record: IngestedRecord, to dayStart: Date) {
@@ -173,12 +253,22 @@ final class HealthStore: ObservableObject {
             day.temperature.append(sample)
             days[idx] = day
 
+        case .battery, .deviceInfo:
+            // Handled by `applyDeviceLevel`; they have no day bucket.
+            break
+        }
+    }
+
+    /// Records that describe the ring rather than the wearer on a given day.
+    private func applyDeviceLevel(_ record: IngestedRecord) {
+        switch record {
         case .battery(let level):
             batteryPercent = level
-
         case .deviceInfo(let name, let fw):
             if !name.isEmpty { ringName = name }
-            firmware = fw
+            if !fw.isEmpty, fw != "—" { firmware = fw }
+        default:
+            break
         }
     }
 

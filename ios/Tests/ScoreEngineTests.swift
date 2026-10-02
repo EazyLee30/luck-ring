@@ -1,5 +1,5 @@
 import XCTest
-@testable import LuckRingKit
+@testable import LuckRingDemo
 
 /// Score engine contract. These are the numbers the whole UI hangs off, so they
 /// get asserted rather than eyeballed.
@@ -83,7 +83,7 @@ final class ScoreEngineTests: XCTestCase {
         for steps in [0, 1, 500, 8000, 8001, 40000] {
             for calories in [0, 100, 500, 5000] {
                 for minutes in [0, 1, 30, 600] {
-                    let d = day(steps: steps, calories: calories, activeMinutes: minutes)
+                    let d = day(steps: steps, activeMinutes: minutes, calories: calories)
                     let a = ScoreEngine.activity(for: d, goals: goals)
                     XCTAssertTrue((0...100).contains(a.total), "activity \(a.total) out of range")
                     XCTAssertEqual(a.total, a.stepsPoints + a.caloriesPoints + a.activeTimePoints)
@@ -202,7 +202,7 @@ final class ScoreEngineTests: XCTestCase {
     func testHRVBaselineGuardsAgainstZero() {
         let zero = Baseline(averageBedtimeMinutes: nil, averageHRV: 0,
                             averageRestingHR: nil, averageSkinTemp: nil)
-        let d = day(sleepHours: 8, efficiency: 0.93, hrv: 45, rhr: 55)
+        let d = day(sleepHours: 8, efficiency: 0.93, rhr: 55, hrv: 45)
         let s = ScoreEngine.sleep(for: d, goals: goals, baseline: nil).total
         let r = ScoreEngine.readiness(for: d, goals: goals, baseline: zero, sleepScore: s)
         XCTAssertTrue((0...100).contains(r.total))

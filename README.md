@@ -23,13 +23,13 @@
 
 <div align="center">
 
-| Today | Trends | Ring |
+| Today | Vitals | My Health |
 |:---:|:---:|:---:|
-| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/trends.png" width="230"> | <img src="docs/images/ring.png" width="230"> |
+| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/vitals.png" width="230"> | <img src="docs/images/health.png" width="230"> |
 
 </div>
 
-<div align="center"><sub>Today · Trends · Ring — screenshots from the demo target, no ring required</sub></div>
+<div align="center"><sub>Three tabs, mirroring the structure health apps converge on — screenshots from the demo target, no ring required</sub></div>
 
 ---
 
@@ -37,8 +37,13 @@
 
 A ring that speaks an undocumented BLE protocol, a vendor SDK that ships as a
 closed arm64 binary, and no first-party app worth using. This is an iOS app built
-from scratch on top of both: three score gauges, sleep staging, vitals, trends,
-and a live packet console.
+from scratch on top of both.
+
+**Today** leads with pinned metric shortcuts, the three scores, anything that needs
+attention, and a timeline of what the ring actually reported. **Vitals** groups
+every metric by health area with date navigation. **My Health** rates longer-term
+areas on four levels against a data requirement, and says "not enough data" instead
+of guessing. Device controls live in a sheet behind the ring icon.
 
 Everything in the UI runs on real ring data. There is no server, no account, no
 analytics. The app talks to the ring and nothing else.
@@ -71,6 +76,24 @@ and every score is traceable back to a packet.
 <br><br>
 The vendor framework is arm64 device-only, so the domain layer sits behind a
 protocol and a demo target fills it with generated data.
+
+</td>
+<td>
+
+**Honest about uncertainty**
+<br><br>
+A rating computed from two nights is noise, so every health area declares its
+data requirement and refuses to answer before it is met.
+
+</td>
+</tr>
+<tr>
+<td>
+
+**38 unit tests**
+<br><br>
+Score bounds swept across the input space, monotonicity, degenerate input, and
+sleep-session assembly — the two places real bugs hid.
 
 </td>
 <td>
@@ -117,7 +140,7 @@ is no simulator slice. The device target therefore sets
 
 | Target | Framework | Runs on | Purpose |
 |---|:---:|---|---|
-| `LuckRingDemo` | ✗ | Simulator | UI iteration, SwiftUI previews, screenshots |
+| `LuckRingDemo` | ✗ | Simulator | UI iteration, SwiftUI previews, screenshots, test host |
 | `LuckRing` | ✓ | Device (arm64) | Real ring, embedded and signed |
 
 The domain layer is plain Foundation behind a `RingBridge` protocol, so demo
@@ -141,6 +164,34 @@ Sleep arrives as `(timestamp, stage)` transitions rather than sessions.
 `SleepSession.assemble` rebuilds them — taking the **last** `SLEEP_WAKEUP` as
 the session end, because there is normally an early awakening minutes after
 falling asleep.
+
+## Correctness
+
+The score engine and sleep assembler are the parts most likely to be quietly
+wrong, and neither needs hardware. `ios/Tests` covers them and CI runs the suite
+on every push:
+
+```bash
+cd ios && xcodegen generate
+xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+```
+
+```
+Executed 38 tests, with 0 failures
+```
+
+Writing them found four real bugs, all now fixed with regression tests:
+
+- **Overnight sleep never assembled.** A night starting before midnight had its
+  post-midnight stages bucketed into *tomorrow*, so no session was ever built and
+  every night read as missing.
+- **Battery and firmware readings were dropped.** `ingest` skipped any record
+  without a timestamp, which is every device-level record.
+- **A bogus session from a stray transition.** The assembler had no
+  `SLEEP_START` anchor, so an awake-first sequence produced a session.
+- **No baseline without sleep.** A wearer with HRV and heart rate but no sleep
+  record yet never got a baseline.
 
 ## Scoring model
 
@@ -204,13 +255,16 @@ ios/
     Demo/                      simulator entry point
     Previews/                  SwiftUI previews
   Tools/ScoreReport/           headless score + invariant harness
-  Tests/                       XCTest suites (WIP)
+  Tests/                       38 XCTest cases over scoring and sleep assembly
+  Tests/                       ScoreEngineTests · SleepSessionTests
 scripts/make-readme-assets.py  regenerates the banner and screenshot tiles
 SDK/                           vendor docs, headers and demo project
 ```
 
 ## Gotchas
 
+- **Shortcuts are not yet reorderable** — the catalogue and the three-slot
+  minimum are modelled, but the drag-to-reorder gesture is not built.
 - **First pairing requires tapping the ring.** Later connections auto-pair once
   the UUID is saved via `saveConnectedUUid`.
 - **One BLE central at a time.** Close the vendor app first or the ring stays
@@ -224,8 +278,7 @@ SDK/                           vendor docs, headers and demo project
 
 ## Roadmap
 
-- [ ] Extract the domain layer into a `LuckRingKit` framework and land the XCTest
-      suites (`ios/Tests/` is written but not yet wired into the project)
+- [x] Land the XCTest suites and run them in CI
 - [ ] Persist history to disk so data survives an app restart
 - [ ] Standalone BLE client that skips the vendor framework entirely
 - [ ] HealthKit export

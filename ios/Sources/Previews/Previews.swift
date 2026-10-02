@@ -3,19 +3,19 @@ import SwiftUI
 /// Previews run against generated data, so the UI can be iterated in Xcode
 /// without a paired ring.
 #Preview("Today") {
-    PreviewHost { TodayView(store: $0) }
+    PreviewHost { store in TodayView(store: store) }
 }
 
-#Preview("Trends") {
-    PreviewHost { TrendsView(store: $0) }
+#Preview("Vitals") {
+    PreviewHost { store in NavigationStack { VitalsView(store: store) } }
 }
 
-#Preview("Ring") {
-    PreviewHost { RingView(store: $0) }
+#Preview("My Health") {
+    PreviewHost { store in NavigationStack { HealthView(store: store) } }
 }
 
 #Preview("Tabs") {
-    PreviewHost { RootTabView(store: $0) }
+    PreviewHost { store in RootTabView(store: store) }
 }
 
 private struct PreviewHost<Content: View>: View {

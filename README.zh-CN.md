@@ -23,21 +23,25 @@
 
 <div align="center">
 
-| 今日 | 趋势 | 戒指 |
+| 今日 | 生命体征 | 我的健康 |
 |:---:|:---:|:---:|
-| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/trends.png" width="230"> | <img src="docs/images/ring.png" width="230"> |
+| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/vitals.png" width="230"> | <img src="docs/images/health.png" width="230"> |
 
 </div>
 
-<div align="center"><sub>今日 · 趋势 · 戒指 —— 截图来自 demo target，不需要戒指在场</sub></div>
+<div align="center"><sub>三个 tab，沿用健康类 App 的通用信息架构 —— 截图来自 demo target，不需要戒指在场</sub></div>
 
 ---
 
 ## 这是什么
 
 一个说着未公开 BLE 协议的戒指，一个以闭源 arm64 二进制形式发布的厂商 SDK，
-以及一个不太能用的官方 App。这是一个在两者之上从零写起的 iOS 应用：
-三个分数环、睡眠分期、生命体征、趋势，以及一个实时抓包控制台。
+以及一个不太能用的官方 App。这是一个在两者之上从零写起的 iOS 应用。
+
+**今日** 顶部是钉住的指标快捷入口，接三个分数、需要关注的事项，
+以及戒指真实上报事件的时间线。**生命体征** 按健康领域分组所有指标，顶部可切日期。
+**我的健康** 用四级评级给出长期趋势，**数据不够就明说「数据不足」而不是瞎猜**。
+设备操作收在戒指图标后面的面板里。
 
 界面上每个数字都来自戒指的真实数据。没有服务端、没有账号、没有埋点。
 App 只跟戒指说话。
@@ -70,6 +74,24 @@ App 只跟戒指说话。
 <br><br>
 厂商 framework 只有 arm64 真机 slice，所以领域层放在协议之后，
 由一个 demo target 灌入生成数据。
+
+</td>
+<td>
+
+**对不确定性诚实**
+<br><br>
+只睡两晚得出的评级就是噪声，所以每个健康领域都写明自己的
+数据门槛，没达标就拒绝给答案。
+
+</td>
+</tr>
+<tr>
+<td>
+
+**38 个单元测试**
+<br><br>
+分数边界全空间扫描、单调性、退化输入、睡眠会话装配 ——
+两个真 bug 就藏在这两处。
 
 </td>
 <td>
@@ -116,7 +138,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRing \
 
 | Target | Framework | 运行位置 | 用途 |
 |---|:---:|---|---|
-| `LuckRingDemo` | ✗ | 模拟器 | UI 迭代、SwiftUI 预览、截图 |
+| `LuckRingDemo` | ✗ | 模拟器 | UI 迭代、SwiftUI 预览、截图、测试宿主 |
 | `LuckRing` | ✓ | 真机（arm64） | 真实戒指，embed 并签名 |
 
 领域层是纯 Foundation、藏在 `RingBridge` 协议后面，
@@ -138,6 +160,32 @@ Ring 页面也提供了手动开关。
 睡眠发来的是 `(时间戳, 阶段)` 跳变而不是会话。
 `SleepSession.assemble` 负责重建 —— 取**最后一个** `SLEEP_WAKEUP`
 作为会话结束，因为入睡几分钟后通常会有一次短暂醒来。
+
+## 正确性
+
+分数引擎和睡眠装配是最可能「悄悄算错」的两块，而且都不需要硬件。
+`ios/Tests` 覆盖它们，CI 每次 push 都跑：
+
+```bash
+cd ios && xcodegen generate
+xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+```
+
+```
+Executed 38 tests, with 0 failures
+```
+
+写测试的过程揪出了 **4 个真 bug**，全部已修并补了回归测试：
+
+- **跨夜的睡眠永远装不出来。** 23:30 入睡的夜晚，午夜之后的阶段被归到了
+  *第二天*，于是会话从未建成，每一晚都显示「没有数据」。
+- **电量和固件版本被丢弃。** `ingest` 跳过了所有没有时间戳的记录，
+  而设备级记录全都没有时间戳。
+- **杂散跳变会造出假会话。** 装配函数没有以 `SLEEP_START` 为锚点，
+  一串以 awake 开头的序列就能造出一个会话。
+- **没睡眠记录就没有基线。** 只有 HRV 和心率、还没攒出睡眠会话的用户，
+  永远拿不到基线。
 
 ## 评分模型
 
@@ -202,13 +250,15 @@ ios/
     Demo/                      模拟器入口
     Previews/                  SwiftUI 预览
   Tools/ScoreReport/           离线的分数与不变量校验工具
-  Tests/                       XCTest 测试（进行中）
+  Tests/                       38 个 XCTest 用例，覆盖评分与睡眠装配
 scripts/make-readme-assets.py  重新生成 banner 与截图
 SDK/                           厂商文档、头文件与 demo 工程
 ```
 
 ## 踩过的坑
 
+- **快捷入口还不能拖拽排序** —— 目录和「至少三个」的约束已经建模，
+  但手势没做。
 - **首次配对要点一下戒指。** 保存过 UUID 之后（`saveConnectedUUid`），
   后续连接会自动配对。
 - **同一时刻只允许一个 BLE 中心设备。** 先把厂商 App 关掉，否则戒指一直被占用。
@@ -220,8 +270,7 @@ SDK/                           厂商文档、头文件与 demo 工程
 
 ## 路线图
 
-- [ ] 把领域层抽成 `LuckRingKit` framework 并接上 XCTest
-      （`ios/Tests/` 已写好，但还没接进工程）
+- [x] 落地 XCTest 并接进 CI
 - [ ] 历史数据落盘，重启 App 后不丢
 - [ ] 完全绕开厂商 framework 的独立 BLE 客户端
 - [ ] 导出到 HealthKit

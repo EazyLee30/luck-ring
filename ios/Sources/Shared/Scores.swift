@@ -154,8 +154,11 @@ struct Baseline {
     var averageSkinTemp: Double?
 
     static func make(from days: [DailySnapshot]) -> Baseline? {
+        // Two days of *any* wearable data is the floor. Gating on sleep
+        // records alone meant a wearer with HRV and heart rate but no sleep
+        // session yet never got a baseline at all.
+        guard days.count >= 2 else { return nil }
         let withSleep = days.filter { $0.sleep != nil }
-        guard withSleep.count >= 2 else { return nil }
 
         let calendar = Calendar.current
         let bedtimes: [Int] = withSleep.compactMap { d in

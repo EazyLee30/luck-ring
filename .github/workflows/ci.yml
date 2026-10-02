@@ -28,15 +28,16 @@ jobs:
         working-directory: ios
         run: xcodegen generate
 
-      - name: Build LuckRingDemo
+      - name: Test
         working-directory: ios
         run: |
           set -o pipefail
+          # 38 tests over the score engine, sleep assembler and store ingestion.
           xcodebuild \
             -project LuckRing.xcodeproj \
             -scheme LuckRingDemo \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-            build \
+            test \
             | xcpretty --simple
 
   domain:

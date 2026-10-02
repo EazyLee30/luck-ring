@@ -55,8 +55,11 @@ struct SleepSession: Identifiable, Codable, Hashable {
         intervals.filter { $0.stage == stage }.reduce(0) { $0 + $1.duration }
     }
 
+    /// The ring only ever reports *awake*, never "asleep". Everything in the
+    /// session that was not explicitly marked awake therefore counts as sleep,
+    /// which also covers the unclassified gap before the first stage transition.
     var asleep: TimeInterval {
-        intervals.filter { $0.stage != .awake }.reduce(0) { $0 + $1.duration }
+        max(0, duration - time(.awake))
     }
 
     /// Asleep ÷ time in bed.
@@ -79,24 +82,39 @@ struct SleepSession: Identifiable, Codable, Hashable {
     /// Each transition opens a stage; the next one closes it.
     static func assemble(from transitions: [SleepTransition]) -> SleepSession? {
         let ordered = transitions.sorted { $0.time < $1.time }
-        guard let first = ordered.first else { return nil }
 
-        var intervals: [SleepInterval] = []
-        for i in ordered.indices.dropLast() {
-            let stage = ordered[i].stage
-            guard stage.isStage else { continue }
-            let next = ordered[i + 1].time
-            guard next > ordered[i].time else { continue }
-            intervals.append(SleepInterval(stage: stage, start: ordered[i].time, end: next))
-        }
+        // Anchor on an explicit SLEEP_START. Without it we cannot tell a session
+        // from a stray stage change, and previously an awake-first sequence
+        // produced a bogus session.
+        guard let startMarker = ordered.first(where: { $0.stage == .start }) else { return nil }
+        let start = startMarker.time
 
+        // A stage transition can share the start timestamp exactly — the device is not
+        // obliged to delay it — so keep those. Only the session end needs to be
+        // strictly later.
+        let after = ordered.filter { $0.time >= start && $0.stage != .start }
         // The session ends on the LAST awake transition, not the first — there is
         // typically an early awakening minutes after falling asleep.
-        let awakeEnd = ordered.last { $0.stage == .awake && $0.time > first.time }?.time
-        let end = awakeEnd ?? ordered.last?.time ?? first.time
-        guard end > first.time else { return nil }
+        let end = after.last { $0.stage == .awake && $0.time > start }?.time
+            ?? after.last(where: { $0.time > start })?.time
+            ?? start
+        guard end > start else { return nil }
 
-        return SleepSession(start: first.time, end: end, intervals: intervals)
+        // Each stage transition opens a stage that runs until the next one. The
+        // device does not emit a transition at the instant of falling asleep, so
+        // these intervals deliberately cover less than the whole session — the
+        // remainder is unclassified rather than invented. `asleep` is derived
+        // from the session length, not from this list.
+        var intervals: [SleepInterval] = []
+        for (i, transition) in after.enumerated() {
+            guard transition.stage.isStage else { continue }
+            let nextTime = after.dropFirst(i + 1).first?.time ?? end
+            guard nextTime > transition.time else { continue }
+            intervals.append(SleepInterval(stage: transition.stage,
+                                          start: transition.time, end: nextTime))
+        }
+
+        return SleepSession(start: start, end: end, intervals: intervals)
     }
 }
 

@@ -1,13 +1,15 @@
 import SwiftUI
 
 /// Pairing, battery, streaming toggle, on-demand measurements, goals, and the
-/// live packet console. This is where the ring is actually driven.
-struct RingView: View {
+/// live packet console. Presented as a sheet from Today's ring button rather
+/// than a tab, so the three primary tabs stay metric-focused.
+struct DeviceSheet: View {
     @ObservedObject var store: HealthStore
+    @Environment(\.dismiss) private var dismiss
     @State private var found: [DiscoveredRing] = []
     @State private var selected: DiscoveredRing?
-    @State private var streaming = false
     @State private var lines: [String] = []
+    @State private var streaming = true
     @State private var showConsole = false
 
     var body: some View {
@@ -25,8 +27,24 @@ struct RingView: View {
             .padding(.bottom, 24)
         }
         .background(Palette.bg.ignoresSafeArea())
-        .navigationTitle("Ring")
-        .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top) {
+            HStack {
+                Text("Ring")
+                    .font(.metric(19))
+                    .foregroundStyle(Palette.textPrimary)
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(Palette.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Palette.bg)
+        }
         .onAppear {
             store.onPeripherals = { found = $0 }
             store.onLog = { line in
@@ -152,9 +170,13 @@ struct RingView: View {
                 HStack(spacing: 10) {
                     button(streaming ? "Streaming…" : "Start streaming", tone: streaming ? .good : .primary) {
                         streaming = true
+                        store.setSensorStreaming(true)
                     }
-                    button("Stop", tone: .danger) { streaming = false }
-                        .disabled(!streaming)
+                    button("Stop", tone: .danger) {
+                        streaming = false
+                        store.setSensorStreaming(false)
+                    }
+                    .disabled(!streaming)
                 }
                 if streaming {
                     HStack(spacing: 6) {

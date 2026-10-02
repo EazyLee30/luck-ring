@@ -112,7 +112,7 @@ def load_screen(name, width):
 # -------------------------------------------------------------------- banner
 
 
-def build_banner(screens):
+def build_banner(screens=("today-top", "vitals", "health")):
     W, H = 2400, 1000
     base = vertical_gradient((W, H), BG_TOP, BG_BOTTOM).convert("RGB")
 
@@ -137,7 +137,7 @@ def build_banner(screens):
     # --- phones, fanned on the right
     phone_w = 372
     layers = []
-    for i, key in enumerate(["today-top", "trends", "ring"]):
+    for i, key in enumerate(list(screens)):
         shot = load_screen(key, phone_w)
         angle = [-8, 0, 8][i]
         shot = shot.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
@@ -230,12 +230,12 @@ def build_banner(screens):
 
 
 def build_tiles():
-    for name in ["today-top", "today-detail", "trends", "ring"]:
+    for name in ["today-top", "today-detail", "vitals", "health"]:
         shot = load_screen(name, 420)
         shot.save(os.path.join(OUT, name + ".png"), optimize=True)
         print("wrote docs/images/%s.png" % name)
 
 
 if __name__ == "__main__":
-    build_banner(["today-top", "trends", "ring"])
+    build_banner()
     build_tiles()
