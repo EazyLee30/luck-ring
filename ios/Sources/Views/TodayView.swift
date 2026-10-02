@@ -4,26 +4,40 @@ struct TodayView: View {
     @ObservedObject var store: HealthStore
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                header
-                gaugeStrip
-                if let day = store.selectedDay {
-                    sleepCard(day)
-                    readinessCard(day)
-                    activityCard(day)
-                    vitalsCard(day)
-                    heartRateCard(day)
-                    sleepStagesCard(day)
-                } else {
-                    emptyState
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 14) {
+                    header
+                    gaugeStrip
+                    if let day = store.selectedDay {
+                        sleepCard(day)
+                            .id("sleep")
+                        readinessCard(day)
+                            .id("readiness")
+                        activityCard(day)
+                            .id("activity")
+                        vitalsCard(day)
+                            .id("vitals")
+                        heartRateCard(day)
+                            .id("heart")
+                        sleepStagesCard(day)
+                            .id("stages")
+                    } else {
+                        emptyState
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+            }
+            .background(Palette.bg.ignoresSafeArea())
+            .refreshable { store.refresh() }
+            .onAppear {
+                guard TodayView.launchAnchor == .middle else { return }
+                DispatchQueue.main.async {
+                    withAnimation(.none) { proxy.scrollTo("vitals", anchor: .top) }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
         }
-        .background(Palette.bg.ignoresSafeArea())
-        .refreshable { store.refresh() }
     }
 
     // MARK: - Header
@@ -234,10 +248,13 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: "Heart rate", icon: "heart.fill", tint: Palette.heart)
 
-                HStack(spacing: 20) {
-                    StatRow(title: "Resting", value: day.restingHeartRate.map(String.init) ?? "—", unit: "bpm", tint: Palette.heart)
-                    StatRow(title: "Lowest", value: day.lowestHeartRate.map(String.init) ?? "—", unit: "bpm", tint: Palette.readiness)
-                    StatRow(title: "Highest", value: day.highestHeartRate.map(String.init) ?? "—", unit: "bpm", tint: Palette.warn)
+                HStack(spacing: 10) {
+                    MiniStat(title: "Resting", value: day.restingHeartRate.map(String.init) ?? "—",
+                             unit: "bpm", tint: Palette.heart)
+                    MiniStat(title: "Lowest", value: day.lowestHeartRate.map(String.init) ?? "—",
+                             unit: "bpm", tint: Palette.readiness)
+                    MiniStat(title: "Highest", value: day.highestHeartRate.map(String.init) ?? "—",
+                             unit: "bpm", tint: Palette.warn)
                 }
 
                 if day.heartRate.count > 2 {

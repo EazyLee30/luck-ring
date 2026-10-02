@@ -1,111 +1,247 @@
+<div align="center">
+
+<img src="docs/images/banner.jpg" alt="Luck Ring" width="100%">
+
 # Luck Ring
 
-iOS app for a Luck Ring, built on Coolwear's closed-source `BluetoothLibrary.framework`.
+**A native iOS companion for a Bluetooth smart ring, built on Coolwear's closed-source BLE SDK.**
 
-Three tabs: **Today** (three score gauges + detail cards), **Trends** (7-day charts), **Ring** (pairing, streaming, on-demand measurements, packet console).
+[![CI](https://github.com/EazyLee30/luck-ring/actions/workflows/ci.yml/badge.svg)](https://github.com/EazyLee30/luck-ring/actions/workflows/ci.yml)
+[![Swift](https://img.shields.io/badge/Swift-5.9-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
+[![iOS](https://img.shields.io/badge/iOS-17.0%2B-000000?style=flat-square&logo=apple&logoColor=white)](https://developer.apple.com/ios/)
+[![Xcode](https://img.shields.io/badge/Xcode-26.3-0B6FB8?style=flat-square&logo=xcode&logoColor=white)](https://developer.apple.com/xcode/)
+[![License](https://img.shields.io/badge/license-MIT-2ED573?style=flat-square)](#license)
+[![Stars](https://img.shields.io/github/stars/EazyLee30/luck-ring?style=flat-square&label=stars)](https://github.com/EazyLee30/luck-ring/stargazers)
+[![Forks](https://img.shields.io/github/forks/EazyLee30/luck-ring?style=flat-square&label=forks)](https://github.com/EazyLee30/luck-ring/network/members)
+[![Last commit](https://img.shields.io/github/last-commit/EazyLee30/luck-ring?style=flat-square)](https://github.com/EazyLee30/luck-ring/commits/main)
 
-```
-ios/
-  project.yml                  xcodegen spec — two targets
-  Sources/
-    Shared/                    domain models, scoring, design system, store
-    Views/                     Today / Trends / Ring
-    Device/                    BLE bridge bound to the vendor SDK
-    Demo/                      simulator entry point
-    Previews/                  SwiftUI previews
-  Tools/ScoreReport/           CLI that checks score distributions headlessly
-  Support/                     Info.plists
-SDK/
-  SDK/BluetoothLibrary.framework   vendor framework (binary gitignored, see below)
-  coolwearsdkdemo-main 6/          vendor demo project + SDK docs
-```
+**English** · [简体中文](README.zh-CN.md)
 
-## Build
+</div>
+
+---
+
+<div align="center">
+
+| Today | Trends | Ring |
+|:---:|:---:|:---:|
+| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/trends.png" width="230"> | <img src="docs/images/ring.png" width="230"> |
+
+</div>
+
+<div align="center"><sub>Today · Trends · Ring — screenshots from the demo target, no ring required</sub></div>
+
+---
+
+## What this is
+
+A ring that speaks an undocumented BLE protocol, a vendor SDK that ships as a
+closed arm64 binary, and no first-party app worth using. This is an iOS app built
+from scratch on top of both: three score gauges, sleep staging, vitals, trends,
+and a live packet console.
+
+Everything in the UI runs on real ring data. There is no server, no account, no
+analytics. The app talks to the ring and nothing else.
+
+## Highlights
+
+<table>
+<tr>
+<td width="50%">
+
+**Score gauges that explain themselves**
+<br><br>
+Sleep, Readiness and Activity out of 100 — with the contribution breakdown
+shown underneath, not hidden behind a "learn more".
+
+</td>
+<td width="50%">
+
+**Sleep reconstructed from raw packets**
+<br><br>
+The device sends a flat list of stage transitions. Sessions are reassembled,
+and every score is traceable back to a packet.
+
+</td>
+</tr>
+<tr>
+<td>
+
+**Runs in the simulator**
+<br><br>
+The vendor framework is arm64 device-only, so the domain layer sits behind a
+protocol and a demo target fills it with generated data.
+
+</td>
+<td>
+
+**Full packet capture**
+<br><br>
+Every frame in and out is recorded to JSONL and pulled off the device through
+the Files app.
+
+</td>
+</tr>
+</table>
+
+## Quick start
 
 ```bash
 brew install xcodegen
 cd ios && xcodegen generate
 ```
 
-**Demo target** — runs in the simulator, no ring or vendor framework needed:
+**Iterate on the UI** — demo target, simulator, no ring needed:
 
 ```bash
 xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
 
-**Device target** — needs the vendor framework at `SDK/SDK/BluetoothLibrary.framework`:
+**Run against a ring** — device target:
 
 ```bash
 xcodebuild -project LuckRing.xcodeproj -scheme LuckRing \
   -destination 'generic/platform=iOS' build
 ```
 
-Then open `ios/LuckRing.xcodeproj`, pick your signing team on the `LuckRing` target, and run on the device.
+Then open `ios/LuckRing.xcodeproj`, choose your signing team on the `LuckRing`
+target, and run on device. First pairing asks you to tap the ring to confirm.
 
-### A note on the vendored binary
+## Two targets, and why
 
-`BluetoothLibrary.framework` is proprietary Coolwear/celink code. `.gitignore` excludes the **binaries** but keeps the docs, headers and demo project. This is your call to reverse — uncomment those lines if you want the framework committed.
+`BluetoothLibrary.framework` reports `LC_BUILD_VERSION platform 2 (IOS)`,
+`minos 13.0`, `sdk 26.0`, and `lipo` confirms it is **not a fat binary** — there
+is no simulator slice. The device target therefore sets
+`SUPPORTED_PLATFORMS = iphoneos` and simply refuses to build for the simulator.
 
-### iOS 27 / Xcode 26 note
+| Target | Framework | Runs on | Purpose |
+|---|:---:|---|---|
+| `LuckRingDemo` | ✗ | Simulator | UI iteration, SwiftUI previews, screenshots |
+| `LuckRing` | ✓ | Device (arm64) | Real ring, embedded and signed |
 
-The framework's Mach-O has `LC_BUILD_VERSION platform 2 (IOS)`, `minos 13.0`, `sdk 26.0`. Consequences:
+The domain layer is plain Foundation behind a `RingBridge` protocol, so demo
+data and real data drive identical views.
 
-- **arm64 device only.** `lipo` confirms it is not a fat binary and there is no simulator slice, so the device target sets `SUPPORTED_PLATFORMS = iphoneos`. The simulator will refuse it.
-- Deployment target is set to 17.0 (well above the framework's 13.0 floor).
-- Verified building with Xcode 26.3 against the iOS 26 SDK.
+## How data actually flows
 
-This is also why the demo target exists: the UI has to be iterable somewhere, and the simulator is the only somewhere available.
-
-## Data model
-
-The ring reports two very different kinds of data, and this is the single most important thing to know about this SDK:
+This is the single most important thing to know about the SDK, and the thing
+that costs people days:
 
 | Kind | How you get it |
 |---|---|
 | **Requestable** — device info, battery, alarms, user profile | `CE_RequestDevInfoCmd`, `CE_RequestBatteryCmd`, … |
-| **Pushed** — steps, sleep, heart-rate history, HRV, temperature | no request command exists. `CE_SensorCmd(onoff: 1)` and the device uploads |
+| **Pushed** — steps, sleep, heart-rate history, HRV, temperature | there is **no request command**. Send `CE_SensorCmd(onoff: 1)` and the device uploads |
 
-So "read the data" is mostly about keeping the sensor switch open, not about issuing commands. `DeviceRingBridge.postPairHandshake` opens it automatically after pairing.
+So "read the data" mostly means holding the sensor switch open, not issuing
+commands. `DeviceRingBridge.postPairHandshake` opens it automatically after
+pairing, and the Ring tab exposes it manually.
 
-Sleep arrives as a flat list of `(timestamp, stage)` transitions, not as sessions. `SleepSession.assemble` rebuilds sessions from them — it takes the **last** `SLEEP_WAKEUP` as the session end, since there is typically an early awakening minutes after falling asleep.
+Sleep arrives as `(timestamp, stage)` transitions rather than sessions.
+`SleepSession.assemble` rebuilds them — taking the **last** `SLEEP_WAKEUP` as
+the session end, because there is normally an early awakening minutes after
+falling asleep.
 
-Raw frames in both directions are captured via `CEProductK6.receiveOriginalDataHandler` / `sendOriginalDataHandler` and written to `Documents/captures/*.jsonl` (`UIFileSharingEnabled` is on, so pull them from the Files app).
+## Scoring model
 
-## Scores
+Oura's algorithms are proprietary and unpublished. These are **our own**
+heuristics, compared against a rolling 7-day `Baseline` so they mean something
+per wearer rather than per population.
 
-Sleep / Readiness / Activity are **our own heuristics**, not Oura's. Their algorithms are proprietary and unpublished; `Scores.swift` documents the weights. In short:
+| Score | Breakdown |
+|---|---|
+| **Sleep** | duration 40 · efficiency 25 · deep-sleep band 20 · bedtime consistency 15 |
+| **Readiness** | sleep 50 · HRV 25 · resting HR 15 · skin-temp deviation 10 |
+| **Activity** | steps 50 · calories 30 · active time 20 |
 
-- **Sleep** (100) — duration 40, efficiency 25, deep-sleep band 20, bedtime consistency 15
-- **Readiness** (100) — sleep 50, HRV 25, resting HR 15, skin-temp deviation 10
-- **Activity** (100) — steps 50, calories 30, active time 20
-
-Each compares against a 7-day `Baseline` rather than a population, so scores mean something per-wearer.
-
-Check the distributions without a device:
+Check the distributions and the session invariants without a device:
 
 ```bash
-cd ios && xcrun swiftc -O Sources/Shared/Models.swift Sources/Shared/Scores.swift \
+cd ios
+swiftc -O Sources/Shared/Models.swift Sources/Shared/Scores.swift \
   Sources/Shared/DemoData.swift Sources/Shared/SeededRNG.swift \
   Tools/ScoreReport/main.swift -o /tmp/score-report && /tmp/score-report
 ```
 
-It prints the demo week, a 2000-day histogram, and asserts session invariants (asleep ≤ time in bed, efficiency in range, stage intervals summing to session duration).
+```
+sleep scores: avg 78  min 49  max 85
+readiness:    avg 78  min 42  max 92
+activity:     avg 75  min 9   max 100
+all sessions consistent ✓
+```
 
-## Protocol
+## Protocol notes
 
-Recovered from `-[CE_K6Protocol constructData:funcType:cmdType:searialNumber:header:]`:
+Recovered by disassembling `-[CE_K6Protocol constructData:funcType:cmdType:searialNumber:header:]`:
 
-- 10-byte header: `[0]`=0, `[1]`=1, `[2]`=packet count, `[3]`=(serial % 255)+1, `[4]`=cmdType, `[5]`=funcType, `[6..7]`=0, `[8..9]`=uint16 body length
-- Packet 0 carries the header + 10 body bytes; each later packet is 1 index byte + 19 body bytes. 20 bytes per frame.
-- CRC for OTA/GPS payloads is `crc_dspWithReg:dataCrc:` — poly `0x8005`, MSB-first, init passed in (i.e. CRC-16/CCITT). The data framing itself has no CRC.
+```
+10-byte header
+  [0]      0
+  [1]      1
+  [2]      packet count
+  [3]      (serial % 255) + 1
+  [4]      cmdType
+  [5]      funcType
+  [6..7]   0
+  [8..9]   uint16 body length
 
-Not done: a standalone client that speaks BLE directly without the vendor framework. GATT UUIDs aren't in the binary as plaintext.
+packet 0 : 10-byte header + 10 body bytes
+packet n : 1 index byte  + 19 body bytes      (20 bytes per frame)
+```
+
+Payload CRC for OTA/GPS is `crc_dspWithReg:dataCrc:` — poly `0x8005`, MSB-first,
+init passed in, i.e. CRC-16/CCITT. The data framing itself carries no CRC.
+
+## Layout
+
+```
+ios/
+  project.yml                  xcodegen spec
+  Sources/
+    Shared/                    models · scoring · design system · store
+    Views/                     Today / Trends / Ring
+    Device/                    BLE bridge bound to the vendor SDK
+    Demo/                      simulator entry point
+    Previews/                  SwiftUI previews
+  Tools/ScoreReport/           headless score + invariant harness
+  Tests/                       XCTest suites (WIP)
+scripts/make-readme-assets.py  regenerates the banner and screenshot tiles
+SDK/                           vendor docs, headers and demo project
+```
 
 ## Gotchas
 
-- **First pairing requires tapping the ring** to confirm. Automatic on later connects once the UUID is saved.
-- Only one BLE central at a time — close the vendor app first.
-- `CE_ClearDataCmd` erases history stored on the ring.
+- **First pairing requires tapping the ring.** Later connections auto-pair once
+  the UUID is saved via `saveConnectedUUid`.
+- **One BLE central at a time.** Close the vendor app first or the ring stays
+  busy.
+- **`CE_ClearDataCmd` erases history stored on the ring.** Guarded behind a
+  confirmation dialog.
 - Background streaming needs `UIBackgroundModes: bluetooth-central`.
-- The vendor demo filters scans on `version > 4 || isPairedSystem`; so does this app.
+- Scans are filtered on `version > 4 || isPairedSystem`, same as the vendor demo.
+- The ring does not report REM as a distinct stage; `SleepStage.rem` exists in
+  the model but the device never sends it.
+
+## Roadmap
+
+- [ ] Extract the domain layer into a `LuckRingKit` framework and land the XCTest
+      suites (`ios/Tests/` is written but not yet wired into the project)
+- [ ] Persist history to disk so data survives an app restart
+- [ ] Standalone BLE client that skips the vendor framework entirely
+- [ ] HealthKit export
+- [ ] Ring-specific metrics once the firmware reveals them
+      (`DATA_TYPE_HISTORY_TEMP`, `DATA_TYPE_SET_VALUABLE_ASSISTANT`)
+
+## Credits
+
+- [`BluetoothLibrary.framework`](SDK/) and the SDK documentation are
+  **Coolwear / celink**'s. Not affiliated, not endorsed. Framework binaries are
+  excluded from git — see [`.gitignore`](.gitignore).
+- Visual design is our own. This is not affiliated with, endorsed by, or derived
+  from Oura. The layout follows patterns common to health apps; the palette,
+  typography, iconography and every line of code here are original.
+- Scores are our own heuristics, not Oura's.
+
+## License
+
+[MIT](LICENSE) — see the third-party note at the bottom of that file.

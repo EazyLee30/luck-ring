@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  demo:
+    name: Demo app (simulator)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-xcode@v3
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build LuckRingDemo
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project LuckRing.xcodeproj \
+            -scheme LuckRingDemo \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            build \
+            | xcpretty --simple
+
+  domain:
+    name: Score engine invariants
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The domain layer is plain Foundation, so it compiles and runs as a CLI.
+      # This asserts score bounds and sleep-session invariants on every push.
+      - name: Run score report
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          swiftc -O \
+            Sources/Shared/Models.swift \
+            Sources/Shared/Scores.swift \
+            Sources/Shared/DemoData.swift \
+            Sources/Shared/SeededRNG.swift \
+            Tools/ScoreReport/main.swift \
+            -o /tmp/score-report
+          /tmp/score-report

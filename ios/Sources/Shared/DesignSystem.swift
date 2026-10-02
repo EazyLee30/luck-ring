@@ -159,6 +159,41 @@ struct SectionHeader: View {
 
 // MARK: - Rows & chips
 
+/// Compact three-across stat. `StatRow` splits a title from a right-aligned value,
+/// which wraps badly when three of them share a narrow card — this centres the
+/// pair and keeps both lines to a single line.
+struct MiniStat: View {
+    let title: String
+    let value: String
+    var unit: String?
+    var tint: Color = Palette.textPrimary
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Palette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.metric(18))
+                    .foregroundStyle(tint)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+                if let unit {
+                    Text(unit)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(Palette.textTertiary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct StatRow: View {
     let title: String
     let value: String
