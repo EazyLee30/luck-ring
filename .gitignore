@@ -34,6 +34,7 @@ ios/LuckRing.xcodeproj/
 SDK/SDK/BluetoothLibrary.framework/BluetoothLibrary
 SDK/SDK/BluetoothLibrary.framework/_CodeSignature/
 SDK/coolwearsdkdemo-main 6/sdkdemo/Lib/BluetoothLibrary.framework/BluetoothLibrary
+SDK/coolwearsdkdemo-main 6/sdkdemo/Lib/BluetoothLibrary.framework/_CodeSignature/
 SDK/coolwearsdkdemo-main 6/sdkdemo/BluetoothLibrary.framework/
 SDK/coolwearsdkdemo-main 6/sdkdemo/BluetoothLibrary.framework
 
