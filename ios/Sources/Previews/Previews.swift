@@ -3,7 +3,7 @@ import SwiftUI
 /// Previews run against generated data, so the UI can be iterated in Xcode
 /// without a paired ring.
 #Preview("Today") {
-    PreviewHost { store in TodayView(store: store) }
+    PreviewHost { store in TodayView(store: store, showDevice: .constant(false)) }
 }
 
 #Preview("Vitals") {

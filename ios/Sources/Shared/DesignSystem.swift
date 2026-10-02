@@ -381,6 +381,14 @@ enum Fmt {
         metres >= 1000 ? "km" : "m"
     }
 
+    /// Thousands separator, so step counts read as 7,091 not 7091.
+    static func count(_ value: Int) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.groupingSeparator = ","
+        return f.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
     static func signed(_ v: Double, digits: Int = 1) -> String {
         String(format: "%+.1f", v)
     }

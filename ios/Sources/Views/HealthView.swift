@@ -10,7 +10,8 @@ struct HealthView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                summary
+                overview
+                headline
 
                 Section(title: "Health areas",
                         caption: "Rated from the last two weeks, not from today") {
@@ -36,43 +37,90 @@ struct HealthView: View {
 
     // MARK: - Summary arc
 
-    private var summary: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(title: "Overview", icon: "chart.pie.fill")
-
-                // One arc segment per area, drawn on a shared 180° track.
-                HStack(alignment: .top, spacing: 6) {
-                    ForEach(areas) { area in
-                        VStack(spacing: 5) {
-                            RatingArc(rating: area.rating, tint: area.rating.tint)
-                                .frame(maxWidth: .infinity)
-                            Text(area.shortLabel)
-                                .font(.system(size: 8.5, weight: .medium))
-                                .foregroundStyle(Palette.textTertiary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
+    /// Wide trend strip per area. Replaces the earlier row of arcs: at five
+    /// across they were too small to read, and a sparkline says more per area.
+    private var overview: some View {
+        GlowCard {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    IconBadge(symbol: "heart.text.square.fill", tint: Palette.sleep, size: 34)
+                    Spacer()
                 }
-                .padding(.top, 4)
 
-                HStack(spacing: 14) {
-                    ForEach([HealthRating.thriving, .lookingGood, .worthWatching, .needsCare],
-                            id: \.self) { r in
-                        HStack(spacing: 4) {
-                            Circle().fill(r.tint).frame(width: 6, height: 6)
-                            Text(r.title)
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(Palette.textTertiary)
+                ForEach(areas) { area in
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(area.shortLabel)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Palette.textSecondary)
+                            Text(area.rating.title)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(area.rating.tint)
+                        }
+                        .frame(width: 88, alignment: .leading)
+
+                        if area.trend.count > 1 {
+                            TrendChart(points: area.trend.map(Double.init),
+                                       tint: area.rating.tint, showsGrid: false)
+                                .frame(height: 32)
+                        } else {
+                            Bar(progress: area.progress, tint: area.rating.tint, height: 6)
                         }
                     }
                 }
             }
             .padding(16)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
+    }
+
+    /// Rating on one side, serif headline on the other, then body copy and a CTA.
+    private var headline: some View {
+        let ranked = areas.filter { $0.rating != .unknown }
+        let worst = ranked.max(by: { $0.rating < $1.rating })
+
+        return VStack(alignment: .leading, spacing: 12) {
+            RatingEnds(
+                left: (worst?.rating.title ?? "Not enough data").uppercased(),
+                right: "THRIVING",
+                leftTint: worst?.rating.tint ?? Palette.textTertiary)
+
+            Text(headlineText)
+                .font(.display(27))
+                .foregroundStyle(Palette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(headlineBody)
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.textSecondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            PillButton(title: "See every contributing metric", symbol: "sparkles")
+        }
+        .padding(.horizontal, 18)
+    }
+
+    /// Lead with the weakest rated area — that is the one needing a decision.
+    private var headlineText: String {
+        let ranked = areas.filter { $0.rating != .unknown }
+        guard let worst = ranked.max(by: { $0.rating < $1.rating }) else {
+            return "Still learning your baseline"
+        }
+        switch worst.rating {
+        case .needsCare: return "\(worst.shortLabel) needs attention"
+        case .worthWatching: return "\(worst.shortLabel) is worth watching"
+        default: return "\(worst.shortLabel) is in good shape"
+        }
+    }
+
+    private var headlineBody: String {
+        let ranked = areas.filter { $0.rating != .unknown }
+        guard let worst = ranked.max(by: { $0.rating < $1.rating }) else {
+            return "Wear the ring for two weeks and these areas will start rating themselves."
+        }
+        let healthy = ranked.filter { $0.rating <= .lookingGood }.count
+        return "\(worst.rationale) \(healthy) of \(ranked.count) rated areas are in good shape right now."
     }
 
     // MARK: - Habits

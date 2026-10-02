@@ -17,6 +17,7 @@ struct VitalsView: View {
                     activitySection(day)
                     coreMetricsSection(day)
                     cardiovascularSection(day)
+                    trendSection()
                 } else {
                     Text("No data for the selected day.")
                         .font(.label(13))
@@ -35,49 +36,45 @@ struct VitalsView: View {
     // MARK: - Scores
 
     private func scoreSection(_ day: DailySnapshot) -> some View {
-        Section(title: "Scores", caption: store.isViewingToday ? nil : "Viewing \(Fmt.dayTitle(day.date))") {
-            Card {
-                VStack(spacing: 16) {
-                    HStack(spacing: 10) {
-                        scorePill("Sleep", store.sleepScore?.total ?? 0, Palette.sleep, .sleep)
-                        scorePill("Readiness", store.readinessScore?.total ?? 0, Palette.readiness, .readiness)
-                        scorePill("Activity", store.activityScore?.total ?? 0, Palette.activity, .activity)
-                    }
-
-                    Divider().overlay(Palette.stroke)
-
-                    let points = store.trend(.sleep)
-                    if points.count > 1 {
-                        TrendChart(points: points.map { Double($0.value) }, tint: Palette.sleep)
-                            .frame(height: 96)
-                        HStack {
-                            Text("\(points.count)-day sleep trend")
-                            Spacer()
-                            if let avg = store.averageScore(.sleep) {
-                                Text("avg \(avg)")
-                            }
-                        }
-                        .font(.label(11))
-                        .foregroundStyle(Palette.textTertiary)
-                    }
-                }
-                .padding(14)
-            }
+        VStack(spacing: 12) {
+            scoreCard(title: "Readiness", symbol: "bolt.heart.fill", tint: Palette.readiness,
+                      score: store.readinessScore?.total ?? 0, metric: .readiness,
+                      status: ScoreVerdict.readiness(store.readinessScore?.total ?? 0).title)
+            scoreCard(title: "Sleep", symbol: "bed.double.fill", tint: Palette.sleep,
+                      score: store.sleepScore?.total ?? 0, metric: .sleep,
+                      status: ScoreVerdict.sleep(store.sleepScore?.total ?? 0).title)
+            scoreCard(title: "Activity goal", symbol: "flame.fill", tint: Palette.activity,
+                      score: store.activityScore?.total ?? 0, metric: .activity,
+                      status: ScoreVerdict.activity(store.activityScore?.total ?? 0).title)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
     }
 
-    private func scorePill(_ title: String, _ score: Int, _ tint: Color, _ metric: TrendMetric) -> some View {
-        VStack(spacing: 7) {
-            ScoreGauge(score: score, tint: tint, size: 68, lineWidth: 6)
-            Text(title)
-                .font(.label(11))
-                .foregroundStyle(Palette.textSecondary)
-            if let d = store.scoreDelta(metric, current: score) {
-                DeltaChip(delta: d)
+    /// One score, laid out the way the reference design does it: header row with a
+    /// status word, a large serif score, and a dot placed on a min/max track.
+    private func scoreCard(title: String, symbol: String, tint: Color,
+                           score: Int, metric: TrendMetric, status: String) -> some View {
+        let average = store.averageScore(metric)
+        let band = average.map { score - $0 } ?? 0
+        let spread = Swift.max(14, Swift.min(40, (average ?? 70) / 4))
+
+        return GlowCard(tint: tint) {
+            VStack(alignment: .leading, spacing: 14) {
+                CardHeaderRow(title: title, symbol: symbol,
+                              status: status.uppercased(), tint: tint)
+
+                HStack(alignment: .center, spacing: 16) {
+                    ScoreWithMark(score: score, symbol: metric == .readiness ? "crown.fill" : nil,
+                                  size: 42)
+                        .frame(width: 92, alignment: .leading)
+                    RangeScale(value: score,
+                               min: Swift.max(0, score - band - spread),
+                               max: Swift.min(100, score - band + spread),
+                               tint: tint)
+                }
             }
+            .padding(16)
         }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Grouped metric cards
@@ -85,7 +82,7 @@ struct VitalsView: View {
     private func sleepSection(_ day: DailySnapshot) -> some View {
         Section(title: "Sleep", caption: "Composition and timing") {
             if let sleep = day.sleep {
-                Card {
+                GlowCard(tint: Palette.sleep) {
                     VStack(alignment: .leading, spacing: 12) {
                         StageBreakdown(sleep: sleep)
                         Divider().overlay(Palette.stroke)
@@ -110,41 +107,65 @@ struct VitalsView: View {
         .padding(.horizontal, 16)
     }
 
+    /// The readiness score already has a card above, so this one carries only
+    /// what drives it.
     private func readinessSection(_ day: DailySnapshot) -> some View {
-        Section(title: "Readiness", caption: "Recovery inputs") {
-            let score = store.readinessScore
-            Card {
-                VStack(alignment: .leading, spacing: 12) {
-                    ScoreHero(score: score?.total ?? 0,
-                              verdict: ScoreVerdict.readiness(score?.total ?? 0).title,
-                              detail: ScoreVerdict.readiness(score?.total ?? 0).detail,
-                              tint: Palette.readiness,
-                              delta: score.map { store.scoreDelta(.readiness, current: $0.total) } ?? nil)
+        let score = store.readinessScore
+        let parts: [ContributorRow] = [
+            ContributorRow(title: "Sleep", verdict: verdict(for: score?.sleepPoints, max: 50),
+                           progress: ratio(score?.sleepPoints, max: 50), tint: Palette.sleep),
+            ContributorRow(title: "Heart-rate variability",
+                           verdict: verdict(for: score?.hrvPoints, max: 25),
+                           progress: ratio(score?.hrvPoints, max: 25), tint: Palette.hrv),
+            ContributorRow(title: "Resting heart rate",
+                           verdict: verdict(for: score?.restingHRPoints, max: 15),
+                           progress: ratio(score?.restingHRPoints, max: 15), tint: Palette.heart),
+            ContributorRow(title: "Skin temperature",
+                           verdict: verdict(for: score?.temperaturePoints, max: 10),
+                           progress: ratio(score?.temperaturePoints, max: 10), tint: Palette.temp),
+        ]
 
-                    if let score {
-                        ContributionStrip(parts: [
-                            .init(points: score.sleepPoints, max: 50, tint: Palette.sleep, label: "sleep"),
-                            .init(points: score.hrvPoints, max: 25, tint: Palette.hrv, label: "HRV"),
-                            .init(points: score.restingHRPoints, max: 15, tint: Palette.heart, label: "RHR"),
-                            .init(points: score.temperaturePoints, max: 10, tint: Palette.temp, label: "temp"),
-                        ])
+        return Section(title: "Readiness", caption: "What drove the score") {
+            GlowCard(tint: Palette.readiness) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(ScoreVerdict.readiness(score?.total ?? 0).detail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ForEach(Array(parts.enumerated()), id: \.offset) { index, row in
+                        if index > 0 { Divider().overlay(Palette.stroke) }
+                        row
                     }
                 }
-                .padding(14)
+                .padding(16)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
+    }
+
+    private func ratio(_ points: Int?, max: Int) -> Double {
+        guard let points, max > 0 else { return 0 }
+        return Double(points) / Double(max)
+    }
+
+    private func verdict(for points: Int?, max: Int) -> String {
+        let r = ratio(points, max: max)
+        if r >= 0.85 { return "Optimal" }
+        if r >= 0.6 { return "Good" }
+        if r >= 0.3 { return "Fair" }
+        return "Low"
     }
 
     private func activitySection(_ day: DailySnapshot) -> some View {
         Section(title: "Activity", caption: "Movement and burn") {
             if let a = day.activity {
-                Card {
+                GlowCard(tint: Palette.activity) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 14) {
                             ProgressRing(progress: Double(a.steps) / Double(max(1, store.goals.stepTarget)),
                                          tint: Palette.activity, size: 70, lineWidth: 6,
-                                         value: "\(a.steps)", caption: "steps")
+                                         value: Fmt.count(a.steps), caption: "steps")
                             ProgressRing(progress: Double(a.calories) / 500,
                                          tint: Palette.activity, size: 70, lineWidth: 6,
                                          value: "\(a.calories)", caption: "kcal")
@@ -166,12 +187,12 @@ struct VitalsView: View {
                 missingCard("No movement data for this day.")
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
     }
 
     private func coreMetricsSection(_ day: DailySnapshot) -> some View {
         Section(title: "Core metrics", caption: "Resting heart rate, HRV, temperature") {
-            Card {
+            GlowCard(tint: Palette.heart) {
                 VStack(alignment: .leading, spacing: 13) {
                     MetricRow(title: "Resting heart rate",
                               value: day.restingHeartRate.map(String.init) ?? "—", unit: "bpm",
@@ -209,7 +230,7 @@ struct VitalsView: View {
 
     private func cardiovascularSection(_ day: DailySnapshot) -> some View {
         Section(title: "Cardiovascular", caption: "Oxygen and pressure") {
-            Card {
+            GlowCard(tint: Palette.oxygen) {
                 VStack(alignment: .leading, spacing: 13) {
                     MetricRow(title: "Blood oxygen",
                               value: day.averageOxygen.map { "\($0)" } ?? "—", unit: "%",
@@ -233,17 +254,51 @@ struct VitalsView: View {
                 .padding(14)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
+    }
+
+    // MARK: - Trend
+
+    private func trendSection() -> some View {
+        let metric = TrendMetric.allCases[abs(store.days.count) % TrendMetric.allCases.count]
+        let points = store.trend(metric)
+
+        return Section(title: "\(metric.title) trend",
+                       caption: points.isEmpty ? nil : "Last \(points.count) days") {
+            GlowCard(tint: metric.tint) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if points.count > 1 {
+                        TrendChart(points: points.map { Double($0.value) }, tint: metric.tint)
+                            .frame(height: 88)
+                        HStack {
+                            Text(Fmt.dayTick(points.first!.day.date))
+                            Spacer()
+                            if let avg = store.averageScore(metric) { Text("avg \(avg)") }
+                            Spacer()
+                            Text(Fmt.dayTick(points.last!.day.date))
+                        }
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(Palette.textTertiary)
+                    } else {
+                        Text("Need at least two days of data.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Palette.textTertiary)
+                    }
+                }
+                .padding(16)
+            }
+        }
+        .padding(.horizontal, 18)
     }
 
     // MARK: - Helpers
 
     private func missingCard(_ text: String) -> some View {
-        Card {
+        GlowCard {
             Text(text)
-                .font(.label(13))
+                .font(.system(size: 13))
                 .foregroundStyle(Palette.textTertiary)
-                .padding(14)
+                .padding(16)
         }
     }
 

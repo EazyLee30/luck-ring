@@ -53,7 +53,7 @@ jobs:
         working-directory: ios
         run: |
           set -o pipefail
-          # 38 cases over the score engine, sleep assembler and store ingestion.
+          # 39 cases over the score engine, sleep assembler and store ingestion.
           xcodebuild \
             -project LuckRing.xcodeproj \
             -scheme LuckRingDemo \

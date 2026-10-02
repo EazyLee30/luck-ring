@@ -195,13 +195,29 @@ final class HealthStoreIngestionTests: XCTestCase {
 
     func testHeartRatesLandInTheRightDayBucket() {
         let store = makeStore()
-        let now = Date()
+        // Anchored to local noon, not `Date()`. Sampling relative to the current
+        // instant made this test time-of-day dependent: run near midnight and the
+        // two readings straddle a day boundary and it fails.
+        let noon = Calendar.current.date(
+            bySettingHour: 12, minute: 0, second: 0, of: Date())!
         store.ingest([
-            .heartRate(HeartRateSample(time: now, bpm: 61)),
-            .heartRate(HeartRateSample(time: now.addingTimeInterval(-3600), bpm: 58)),
+            .heartRate(HeartRateSample(time: noon, bpm: 61)),
+            .heartRate(HeartRateSample(time: noon.addingTimeInterval(3600), bpm: 58)),
         ])
         XCTAssertEqual(store.days.count, 1)
         XCTAssertEqual(store.days[0].heartRate.count, 2)
+    }
+
+    func testReadingsEitherSideOfMidnightSplitIntoTwoBuckets() {
+        let store = makeStore()
+        let midnight = Calendar.current.startOfDay(for: Date())
+        store.ingest([
+            .heartRate(HeartRateSample(time: midnight.addingTimeInterval(-60), bpm: 55)),
+            .heartRate(HeartRateSample(time: midnight.addingTimeInterval(60), bpm: 62)),
+        ])
+        XCTAssertEqual(store.days.count, 2)
+        XCTAssertEqual(store.days.first?.heartRate.first?.bpm, 55)
+        XCTAssertEqual(store.days.last?.heartRate.first?.bpm, 62)
     }
 
     func testRecordsOnDifferentDaysCreateSeparateBuckets() {

@@ -39,11 +39,12 @@ A ring that speaks an undocumented BLE protocol, a vendor SDK that ships as a
 closed arm64 binary, and no first-party app worth using. This is an iOS app built
 from scratch on top of both.
 
-**Today** leads with pinned metric shortcuts, the three scores, anything that needs
-attention, and a timeline of what the ring actually reported. **Vitals** groups
-every metric by health area with date navigation. **My Health** rates longer-term
-areas on four levels against a data requirement, and says "not enough data" instead
-of guessing. Device controls live in a sheet behind the ring icon.
+**Today** leads with circular metric shortcuts, a large arc gauge, a serif headline
+with a standfirst, anything that needs attention, and a timeline of what the ring
+actually reported. **Vitals** groups every metric by health area with date
+navigation; each score gets a status word and a dot placed on a min/max track.
+**My Health** rates longer-term areas on four levels against a data requirement, and
+says "not enough data" instead of guessing. Device controls live behind the ring icon.
 
 Everything in the UI runs on real ring data. There is no server, no account, no
 analytics. The app talks to the ring and nothing else.
@@ -86,11 +87,24 @@ A rating computed from two nights is noise, so every health area declares its
 data requirement and refuses to answer before it is met.
 
 </td>
+<td>
+
+**Original design system**
+<br><br>
+`Editorial.swift` holds the primitives — arc gauge, range scale, segmented
+indicator, hatched bar, editorial card. Patterns, not a traced copy.
+
+</td>
 </tr>
 <tr>
 <td>
 
-**38 unit tests**
+</td>
+</tr>
+<tr>
+<td>
+
+**39 unit tests**
 <br><br>
 Score bounds swept across the input space, monotonicity, degenerate input, and
 sleep-session assembly — the two places real bugs hid.
@@ -178,7 +192,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 38 tests, with 0 failures
+Executed 39 tests, with 0 failures
 ```
 
 Writing them found four real bugs, all now fixed with regression tests:
@@ -254,9 +268,9 @@ ios/
     Device/                    BLE bridge bound to the vendor SDK
     Demo/                      simulator entry point
     Previews/                  SwiftUI previews
+    Shared/Editorial.swift      design-system primitives
   Tools/ScoreReport/           headless score + invariant harness
-  Tests/                       38 XCTest cases over scoring and sleep assembly
-  Tests/                       ScoreEngineTests · SleepSessionTests
+  Tests/                       ScoreEngineTests · SleepSessionTests (39 cases)
 scripts/make-readme-assets.py  regenerates the banner and screenshot tiles
 SDK/                           vendor docs, headers and demo project
 ```

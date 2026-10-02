@@ -38,10 +38,11 @@
 一个说着未公开 BLE 协议的戒指，一个以闭源 arm64 二进制形式发布的厂商 SDK，
 以及一个不太能用的官方 App。这是一个在两者之上从零写起的 iOS 应用。
 
-**今日** 顶部是钉住的指标快捷入口，接三个分数、需要关注的事项，
-以及戒指真实上报事件的时间线。**生命体征** 按健康领域分组所有指标，顶部可切日期。
+**今日** 顶部是圆形指标快捷入口，接一个大尺寸弧形仪表、衬线体标题 +
+导语、需要关注的事项，以及戒指真实上报事件的时间线。**生命体征** 按健康领域分组
+所有指标，顶部可切日期，每个分数配状态词和一个落在 min/max 轨道上的点。
 **我的健康** 用四级评级给出长期趋势，**数据不够就明说「数据不足」而不是瞎猜**。
-设备操作收在戒指图标后面的面板里。
+设备操作收在戒指图标后面。
 
 界面上每个数字都来自戒指的真实数据。没有服务端、没有账号、没有埋点。
 App 只跟戒指说话。
@@ -84,11 +85,19 @@ App 只跟戒指说话。
 数据门槛，没达标就拒绝给答案。
 
 </td>
+<td>
+
+**原创设计系统**
+<br><br>
+`Editorial.swift` 里是基础组件 —— 弧形仪表、范围刻度、分段指示器、
+斜纹进度条、编辑式卡片。是范式，不是逐像素临摹。
+
+</td>
 </tr>
 <tr>
 <td>
 
-**38 个单元测试**
+**39 个单元测试**
 <br><br>
 分数边界全空间扫描、单调性、退化输入、睡眠会话装配 ——
 两个真 bug 就藏在这两处。
@@ -173,7 +182,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 38 tests, with 0 failures
+Executed 39 tests, with 0 failures
 ```
 
 写测试的过程揪出了 **4 个真 bug**，全部已修并补了回归测试：
@@ -249,8 +258,9 @@ ios/
     Device/                    绑定厂商 SDK 的 BLE bridge
     Demo/                      模拟器入口
     Previews/                  SwiftUI 预览
+    Shared/Editorial.swift      设计系统基础组件
   Tools/ScoreReport/           离线的分数与不变量校验工具
-  Tests/                       38 个 XCTest 用例，覆盖评分与睡眠装配
+  Tests/                       ScoreEngineTests · SleepSessionTests（39 个用例）
 scripts/make-readme-assets.py  重新生成 banner 与截图
 SDK/                           厂商文档、头文件与 demo 工程
 ```
