@@ -7,6 +7,9 @@ struct TodayView: View {
     @ObservedObject var store: HealthStore
     @Binding var showDevice: Bool
 
+    @State private var shortcutOrder = Shortcut.defaultOrder
+    @State private var showTraining = false
+
     private var day: DailySnapshot? { store.selectedDay }
 
     var body: some View {
@@ -20,6 +23,7 @@ struct TodayView: View {
                     shortcutBadges
                     heroCard
                     actionItems
+                    trainingCard
                     if let day {
                         if let sleep = day.sleep { sleepCard(day, sleep) }
                         readinessCard(day)
@@ -34,6 +38,7 @@ struct TodayView: View {
         }
         .background(Palette.bg.ignoresSafeArea())
         .refreshable { store.refresh() }
+        .sheet(isPresented: $showTraining) { WorkoutSheet(store: store) }
     }
 
     // MARK: - Header
@@ -83,18 +88,9 @@ struct TodayView: View {
     // MARK: - Shortcuts
 
     private var shortcutBadges: some View {
-        let catalogue = Shortcut.catalogue(days: store.days, goals: store.goals)
-        let shown = Shortcut.defaultOrder.compactMap { id in catalogue.first { $0.id == id } }
-
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(shown) { s in
-                    ShortcutBadge(title: s.title, value: s.value,
-                                  symbol: s.symbol, tint: s.tint)
-                }
-            }
-            .padding(.horizontal, 18)
-        }
+        ReorderableShortcuts(
+            items: Shortcut.catalogue(days: store.days, goals: store.goals),
+            order: $shortcutOrder)
     }
 
     // MARK: - Hero
@@ -196,6 +192,64 @@ struct TodayView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Training
+
+    private var trainingCard: some View {
+        let logged = store.today?.workouts.count ?? 0
+        return GlowCard(tint: Palette.activity) {
+            VStack(alignment: .leading, spacing: 14) {
+                CardHeaderRow(title: "Training",
+                              status: logged == 0 ? "NONE LOGGED"
+                                                  : "\(logged) SESSION\(logged == 1 ? "" : "S")",
+                              tint: Palette.activity)
+
+                HStack(spacing: 12) {
+                    miniMetric("Exercise",
+                               "\(store.totalExerciseMinutes)m",
+                               Palette.activity)
+                    miniMetric("MET-hours",
+                               String(format: "%.1f", store.today?.metHours ?? 0),
+                               Palette.sleep)
+                    miniMetric("Week load",
+                               "\(Int(store.weeklyTrainingLoad() * 100))%",
+                               Palette.readiness)
+                }
+
+                if let active = store.activeWorkout {
+                    HStack(spacing: 8) {
+                        Circle().fill(Palette.activity).frame(width: 7, height: 7)
+                        Text("\(active.kind.title) in progress · \(Fmt.duration(active.duration))")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Palette.activity)
+                    }
+                }
+
+                Button { showTraining = true } label: {
+                    PillButton(title: logged == 0 ? "Log a workout" : "Manage sessions",
+                               symbol: "figure.run", tint: Palette.activity)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(16)
+        }
+        .padding(.horizontal, 18)
+    }
+
+    private func miniMetric(_ title: String, _ value: String, _ tint: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.system(size: 19, weight: .semibold, design: .rounded))
+                .foregroundStyle(Palette.textPrimary)
+            Text(title)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(Palette.textTertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Palette.surfaceHi, in: RoundedRectangle(cornerRadius: 11,
+                                                           style: .continuous))
     }
 
     // MARK: - Sleep

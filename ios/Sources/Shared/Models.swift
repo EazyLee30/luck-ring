@@ -186,6 +186,8 @@ struct DailySnapshot: Identifiable, Codable, Hashable {
     var oxygen: [OxygenSample] = []
     var hrv: [HRVSample] = []
     var temperature: [TemperatureSample] = []
+    /// Sessions the wearer started, plus anything the app inferred.
+    var workoutLog: [Workout] = []
 
     var restingHeartRate: Int? {
         guard !heartRate.isEmpty else { return nil }

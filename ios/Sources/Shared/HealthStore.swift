@@ -110,6 +110,85 @@ final class HealthStore: ObservableObject {
 
     var healthAreas: [HealthArea] { HealthAreaBuilder.build(days: days, goals: goals) }
 
+    // MARK: - Workouts
+
+    /// The session in progress, if any.
+    @Published private(set) var activeWorkout: Workout?
+
+    /// The last 7 days of training load, for the UI.
+    func weeklyTrainingLoad() -> Double {
+        let recent = Array(orderedDays.prefix(7))
+        let met = recent.reduce(0.0) { $0 + $1.metHours }
+        return min(1, met / 150)
+    }
+
+    var totalExerciseMinutes: Int {
+        recentWeekDays.reduce(0) { $0 + $1.exerciseMinutes }
+    }
+
+    var recentWeekDays: [DailySnapshot] { Array(orderedDays.prefix(7)) }
+
+    func startWorkout(_ kind: Workout.Kind) {
+        guard activeWorkout == nil else { return }
+        activeWorkout = Workout(kind: kind, start: Date())
+    }
+
+    func cancelWorkout() { activeWorkout = nil }
+
+    /// Ends the session, folds in whatever heart-rate samples arrived while it
+    /// ran, and estimates the burn.
+    @discardableResult
+    func finishWorkout(distanceMetres: Int? = nil) -> Workout? {
+        guard var workout = activeWorkout else { return nil }
+        workout.end = Date()
+        workout.distanceMetres = distanceMetres ?? workout.distanceMetres
+
+        let day = today ?? DailySnapshot(date: Date())
+        let window = day.heartRate.filter {
+            $0.time >= workout.start && $0.time <= (workout.end ?? Date())
+        }
+        if !window.isEmpty {
+            workout.averageHR = window.map(\.bpm).reduce(0, +) / window.count
+            workout.peakHR = window.map(\.bpm).max()
+        }
+        workout.calories = WorkoutEstimator.calories(for: workout,
+                                                     restingHR: day.restingHeartRate)
+
+        activeWorkout = nil
+        append(workout: workout, to: day)
+        return workout
+    }
+
+    func append(workout: Workout, to day: DailySnapshot) {
+        let idx = days.firstIndex { Calendar.current.isDate($0.date, inSameDayAs: day.date) }
+            ?? days.count
+        if idx >= days.count { days.append(day) }
+        days.sort { $0.date < $1.date }
+        let target = days.firstIndex { Calendar.current.isDate($0.date, inSameDayAs: day.date) }!
+        days[target].workoutLog.append(workout)
+        days[target].workoutLog.sort { $0.start < $1.start }
+        baseline = Baseline.make(from: days)
+    }
+
+    /// Folds inferred sessions into the day, skipping anything overlapping one
+    /// the wearer already logged.
+    func ingestDetected(_ detections: [WorkoutDetector.Detection]) {
+        guard let day = today else { return }
+        for detection in detections {
+            let overlaps = day.workoutLog.contains {
+                $0.start < detection.end && detection.end > detection.start
+            }
+            guard !overlaps else { continue }
+
+            var workout = Workout(kind: detection.kind, start: detection.start, end: detection.end)
+            workout.averageHR = detection.averageHR
+            workout.peakHR = detection.peakHR
+            workout.calories = WorkoutEstimator.calories(for: workout,
+                                                         restingHR: day.restingHeartRate)
+            append(workout: workout, to: day)
+        }
+    }
+
     /// Whether the ring is currently uploading stored history. Set by the device
     /// sheet; Today reads it to decide whether to nag about a paused upload.
     @Published private(set) var isStreaming = false
