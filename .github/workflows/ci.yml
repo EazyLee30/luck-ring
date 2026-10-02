@@ -11,15 +11,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  demo:
-    name: Demo app (simulator)
+  test:
+    name: Tests (simulator)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-xcode@v3
-        with:
-          xcode-version: latest-stable
+      # No actions/setup-xcode: it failed to resolve from the runner, and the
+      # macOS image already ships Xcode. Just pick a stable one if present.
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          for v in Xcode_26.3.app Xcode_26.2.app Xcode.app; do
+            if [ -d "/Applications/$v" ]; then
+              sudo xcode-select -s "/Applications/$v"
+              echo "using $v"
+              break
+            fi
+          done
+          xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -28,17 +38,66 @@ jobs:
         working-directory: ios
         run: xcodegen generate
 
+      - name: Resolve a simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          name=$(xcrun simctl list devices available \
+            | grep -oE 'iPhone [0-9]+ Pro' | head -1 || true)
+          [ -n "$name" ] || name=$(xcrun simctl list devices available \
+            | grep -oE 'iPhone [0-9]+' | head -1)
+          echo "destination=platform=iOS Simulator,name=$name" >> "$GITHUB_OUTPUT"
+          echo "simulator: $name"
+
       - name: Test
         working-directory: ios
         run: |
           set -o pipefail
-          # 38 tests over the score engine, sleep assembler and store ingestion.
+          # 38 cases over the score engine, sleep assembler and store ingestion.
           xcodebuild \
             -project LuckRing.xcodeproj \
             -scheme LuckRingDemo \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-            test \
-            | xcpretty --simple
+            -destination "${{ steps.sim.outputs.destination }}" \
+            test
+
+  device-target:
+    name: Device target (no ring)
+    runs-on: macos-latest
+    # The vendor framework is not in git, so this only has something to prove
+    # when someone has restored it locally.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for the vendor framework
+        id: fw
+        run: |
+          if [ -f "../SDK/SDK/BluetoothLibrary.framework/BluetoothLibrary" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "BluetoothLibrary.framework is gitignored, skipping."
+          fi
+
+      - name: Install XcodeGen
+        if: steps.fw.outputs.present == 'true'
+        run: brew install xcodegen
+
+      - name: Generate project
+        if: steps.fw.outputs.present == 'true'
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build LuckRing for device
+        if: steps.fw.outputs.present == 'true'
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project LuckRing.xcodeproj \
+            -scheme LuckRing \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
 
   domain:
     name: Score engine invariants
@@ -46,8 +105,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The domain layer is plain Foundation, so it compiles and runs as a CLI.
-      # This asserts score bounds and sleep-session invariants on every push.
+      # The pure-Foundation part compiles as a CLI, so this job needs no Xcode
+      # and no simulator.
       - name: Run score report
         working-directory: ios
         run: |
