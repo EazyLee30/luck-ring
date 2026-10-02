@@ -1,9 +1,10 @@
-name: LuckRingReader
+name: LuckRing
 options:
   bundleIdPrefix: com.luckring
   deploymentTarget:
-    iOS: "15.0"
+    iOS: "17.0"
   createIntermediateGroups: true
+  groupSortPosition: top
   generateEmptyDirectories: true
 
 settings:
@@ -13,17 +14,46 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: NO
 
 targets:
-  LuckRingReader:
+
+  # ---------------------------------------------------------------- demo/preview
+  # No vendor framework. Runs in the simulator so the UI can be iterated on
+  # without a ring, and hosts the SwiftUI previews.
+  LuckRingDemo:
     type: application
     platform: iOS
     sources:
-      - path: Sources
+      - path: Sources/Shared
+      - path: Sources/Views
+      - path: Sources/Demo
+      - path: Sources/Previews
+      - path: Support/Info-Demo.plist
+        buildPhase: none
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.luckring.reader.demo
+        INFOPLIST_FILE: Support/Info-Demo.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+
+  # ---------------------------------------------------------------------- device
+  # The real thing. Vendor framework is embedded and signed.
+  LuckRing:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/Shared
+      - path: Sources/Views
+      - path: Sources/Device
+      - path: Sources/App/Device
       - path: Support/Info.plist
         buildPhase: none
     dependencies:
       - framework: ../SDK/SDK/BluetoothLibrary.framework
         embed: true
         codeSign: true
+      - sdk: SwiftUI.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.luckring.reader
@@ -32,8 +62,21 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         FRAMEWORK_SEARCH_PATHS:
           - $(SRCROOT)/../SDK/SDK
-        # The vendor framework is arm64 device-only (no simulator slice),
-        # so the simulator is not a valid destination.
+        # arm64 device-only framework: no simulator slice exists.
         SUPPORTED_PLATFORMS: iphoneos
         SUPPORTS_MACCATALYST: NO
         LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks
+
+schemes:
+  LuckRing:
+    build:
+      targets:
+        LuckRing: all
+    run:
+      config: Debug
+  LuckRingDemo:
+    build:
+      targets:
+        LuckRingDemo: all
+    run:
+      config: Debug

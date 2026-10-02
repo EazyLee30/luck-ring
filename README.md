@@ -1,83 +1,111 @@
-# Luck Ring iOS 读数
+# Luck Ring
 
-结论：**能做**。SDK 是闭环的 iOS framework，协议、数据类型、命令全部齐全，构建已通过。真机上插上 ring 就能读数。
+iOS app for a Luck Ring, built on Coolwear's closed-source `BluetoothLibrary.framework`.
 
-## 关键约束
-
-`BluetoothLibrary.framework` 只有 arm64 **真机** slice（`lipo` 确认非 fat），没有模拟器架构。
-`SUPPORTED_PLATFORMS` 设成 `iphoneos`，模拟器不能作为 destination —— 必须真机 + 蓝牙。
-
-厂商 demo 工程原样构建通过（`BUILD SUCCEEDED`），说明 SDK 与当前 Xcode 26.3 没有兼容性问题。
-
-## 布局
+Three tabs: **Today** (three score gauges + detail cards), **Trends** (7-day charts), **Ring** (pairing, streaming, on-demand measurements, packet console).
 
 ```
-SDK/SDK/BluetoothLibrary.framework     新版，93 个 header，iOS SDK 26 编译
-SDK/coolwearsdkdemo-main 6/            厂商 demo，含 Pods 与示例代码
-ios/                                    本文所述的精简读数 app
+ios/
+  project.yml                  xcodegen spec — two targets
+  Sources/
+    Shared/                    domain models, scoring, design system, store
+    Views/                     Today / Trends / Ring
+    Device/                    BLE bridge bound to the vendor SDK
+    Demo/                      simulator entry point
+    Previews/                  SwiftUI previews
+  Tools/ScoreReport/           CLI that checks score distributions headlessly
+  Support/                     Info.plists
+SDK/
+  SDK/BluetoothLibrary.framework   vendor framework (binary gitignored, see below)
+  coolwearsdkdemo-main 6/          vendor demo project + SDK docs
 ```
 
-两版 framework 二进制 SHA 不同（新版更全，带 `CE_GestureCmd`、`CE_ExternWeatherCmd`、`DataStruct.h` 等）。选新版。
-
-## 读数 app
-
-`ios/` 下是一个无 CocoaPods 依赖的 UIKit app，用 xcodegen 生成工程：
-
-- `RingBLE.swift` — SDK 封装。扫描、连接、配对握手、各类读数命令
-- `DataLog.swift` — JSONL 落盘 + `funcType` 名称表 + 控制台格式化
-- `ScanViewController` — 扫到设备列表（过滤 `version > 4`，与厂商 demo 一致）
-- `ReaderViewController` — 读数按钮面板 + 实时 hex/数据控制台
-
-### 构建
+## Build
 
 ```bash
+brew install xcodegen
 cd ios && xcodegen generate
-xcodebuild -project LuckRingReader.xcodeproj -scheme LuckRingReader \
+```
+
+**Demo target** — runs in the simulator, no ring or vendor framework needed:
+
+```bash
+xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+```
+
+**Device target** — needs the vendor framework at `SDK/SDK/BluetoothLibrary.framework`:
+
+```bash
+xcodebuild -project LuckRing.xcodeproj -scheme LuckRing \
   -destination 'generic/platform=iOS' build
 ```
 
-已验证：`CODE_SIGNING_ALLOWED=NO` 下 `BUILD SUCCEEDED`，framework 正确 embed 进 `Frameworks/`。
+Then open `ios/LuckRing.xcodeproj`, pick your signing team on the `LuckRing` target, and run on the device.
 
-装真机需要在 Xcode 里选自己的开发者账号签名（`Signing & Capabilities`）。
+### A note on the vendored binary
 
-## 连接后自动发生什么
+`BluetoothLibrary.framework` is proprietary Coolwear/celink code. `.gitignore` excludes the **binaries** but keeps the docs, headers and demo project. This is your call to reverse — uncomment those lines if you want the framework committed.
 
-`ProductStatus_completed` 之后 SDK 触发握手：开 sensor 开关 → 系统配对 → 同步时间 → 同步用户档案 → 确认配对 → 读设备信息 / 电量 / OTA 状态 / 全部信息 → 保存自动重连 UUID。
+### iOS 27 / Xcode 26 note
 
-**首次配对需要点一下 ring 屏幕确认。**
+The framework's Mach-O has `LC_BUILD_VERSION platform 2 (IOS)`, `minos 13.0`, `sdk 26.0`. Consequences:
 
-## 能读到什么
+- **arm64 device only.** `lipo` confirms it is not a fat binary and there is no simulator slice, so the device target sets `SUPPORTED_PLATFORMS = iphoneos`. The simulator will refuse it.
+- Deployment target is set to 17.0 (well above the framework's 13.0 floor).
+- Verified building with Xcode 26.3 against the iOS 26 SDK.
 
-`DATA_TYPE_*` 共 60+ 种。注意区分两类：
+This is also why the demo target exists: the UI has to be iterable somewhere, and the simulator is the only somewhere available.
 
-- **主动请求**：`CE_RequestDevInfoCmd`、`CE_RequestBatteryCmd`、`CE_RequestAllInfoCmd` 等，按钮直接触发
-- **设备推送**：步数、睡眠、心率历史。SDK 里没有对应的 Request 命令 —— 必须 `CE_SensorCmd` on，设备才主动上流
+## Data model
 
-所以「读点数据」的关键是 sensor 开关，不是发命令。app 已在握手和 `Sensor ON` 按钮两处打开。
+The ring reports two very different kinds of data, and this is the single most important thing to know about this SDK:
 
-实时测量走 `CE_SyncHeartRateCmd` / `CE_SyncBloodPressureCmd` / `CE_SyncHeartO2Cmd`（`status = 1`），结果异步回来。
+| Kind | How you get it |
+|---|---|
+| **Requestable** — device info, battery, alarms, user profile | `CE_RequestDevInfoCmd`, `CE_RequestBatteryCmd`, … |
+| **Pushed** — steps, sleep, heart-rate history, HRV, temperature | no request command exists. `CE_SensorCmd(onoff: 1)` and the device uploads |
 
-## 原始数据抓包
+So "read the data" is mostly about keeping the sensor switch open, not about issuing commands. `DeviceRingBridge.postPairHandshake` opens it automatically after pairing.
 
-`CEProductK6` 暴露两个 block，不用反编译就能拿完整报文：
+Sleep arrives as a flat list of `(timestamp, stage)` transitions, not as sessions. `SleepSession.assemble` rebuilds sessions from them — it takes the **last** `SLEEP_WAKEUP` as the session end, since there is typically an early awakening minutes after falling asleep.
 
-```swift
-productK6.receiveOriginalDataHandler = { data in /* 设备 → app */ }
-productK6.sendOriginalDataHandler    = { data in /* app → 设备 */ }
+Raw frames in both directions are captured via `CEProductK6.receiveOriginalDataHandler` / `sendOriginalDataHandler` and written to `Documents/captures/*.jsonl` (`UIFileSharingEnabled` is on, so pull them from the Files app).
+
+## Scores
+
+Sleep / Readiness / Activity are **our own heuristics**, not Oura's. Their algorithms are proprietary and unpublished; `Scores.swift` documents the weights. In short:
+
+- **Sleep** (100) — duration 40, efficiency 25, deep-sleep band 20, bedtime consistency 15
+- **Readiness** (100) — sleep 50, HRV 25, resting HR 15, skin-temp deviation 10
+- **Activity** (100) — steps 50, calories 30, active time 20
+
+Each compares against a 7-day `Baseline` rather than a population, so scores mean something per-wearer.
+
+Check the distributions without a device:
+
+```bash
+cd ios && xcrun swiftc -O Sources/Shared/Models.swift Sources/Shared/Scores.swift \
+  Sources/Shared/DemoData.swift Sources/Shared/SeededRNG.swift \
+  Tools/ScoreReport/main.swift -o /tmp/score-report && /tmp/score-report
 ```
 
-app 已把它们全部写进 JSONL 的 `rx` / `tx` 条目。
+It prints the demo week, a 2000-day histogram, and asserts session invariants (asleep ≤ time in bed, efficiency in range, stage intervals summing to session duration).
 
-协议帧结构（从 `-[CE_K6Protocol constructData:...]` 反汇编得到）：10 字节头 + 每包 19 字节 body，单包上限 20 字节；头里含 funcType、cmdType、流水号、包序号、body 长度。CRC 是 `crc_dspWithReg:dataCrc:`，poly `0x8005`。
+## Protocol
 
-## 注意事项
+Recovered from `-[CE_K6Protocol constructData:funcType:cmdType:searialNumber:header:]`:
 
-- `CE_ClearDataCmd` 会**清掉 ring 上的历史数据**，UI 里已加二次确认
-- `CE_SendOtaDataCmd` 是固件升级，没接
-- 后台运行靠 `UIBackgroundModes: bluetooth-central`；`applicationWillResignActive` 里关 sensor 省电
-- 捕获文件落在 app 的 `Documents/captures/`，`UIFileSharingEnabled` 打开，可以从「文件」App 直接取
+- 10-byte header: `[0]`=0, `[1]`=1, `[2]`=packet count, `[3]`=(serial % 255)+1, `[4]`=cmdType, `[5]`=funcType, `[6..7]`=0, `[8..9]`=uint16 body length
+- Packet 0 carries the header + 10 body bytes; each later packet is 1 index byte + 19 body bytes. 20 bytes per frame.
+- CRC for OTA/GPS payloads is `crc_dspWithReg:dataCrc:` — poly `0x8005`, MSB-first, init passed in (i.e. CRC-16/CCITT). The data framing itself has no CRC.
 
-## 还没做的
+Not done: a standalone client that speaks BLE directly without the vendor framework. GATT UUIDs aren't in the binary as plaintext.
 
-- ring 自身的电量/佩戴状态等 ring 专属字段：SDK 层的 `DATA_TYPE_*` 已覆盖通用部分，ring 特有字段要等实测 `DATA_TYPE_HISTORY_TEMP`(47)、`DATA_TYPE_SET_VALUABLE_ASSISTANT`(48) 回什么
-- 协议层复刻（不依赖 framework 直接讲 BLE）：帧格式已知，但 GATT UUID 藏在 binary 里没挖出来
+## Gotchas
+
+- **First pairing requires tapping the ring** to confirm. Automatic on later connects once the UUID is saved.
+- Only one BLE central at a time — close the vendor app first.
+- `CE_ClearDataCmd` erases history stored on the ring.
+- Background streaming needs `UIBackgroundModes: bluetooth-central`.
+- The vendor demo filters scans on `version > 4 || isPairedSystem`; so does this app.
