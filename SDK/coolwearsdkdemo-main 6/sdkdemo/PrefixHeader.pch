@@ -1,0 +1,34 @@
+//
+//  PrefixHeader.pch
+//  sdkdemo
+//
+//  Created by coolwear on 2022/9/21.
+//
+
+#ifndef PrefixHeader_pch
+#define PrefixHeader_pch
+
+// Include any system framework and library headers here that should be included in all compilation units.
+// You will also need to set the Prefix Header build setting of one or more of your targets to reference this file.
+#import "sdkdemo-Swift.h"
+#import <BluetoothLibrary/BluetoothLibrary.h>
+#import <MJExtension/MJExtension.h>
+#import "LoadingHUD.h"
+
+#import "BaseModel.h"
+#import "DeviceInfoModel.h"
+#import "SwtModel.h"
+#import "AlarmModel.h"
+#import "LongSitModel.h"
+#import "DisturbModel.h"
+#import "AppSwtModel.h"
+#import "DateModel.h"
+#import "ContactModel.h"
+#import "RealtimeHeartRateModel.h"
+
+#import "DataReceiver.h"
+#import "DataManager.h"
+
+
+
+#endif /* PrefixHeader_pch */

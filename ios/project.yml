@@ -1,0 +1,39 @@
+name: LuckRingReader
+options:
+  bundleIdPrefix: com.luckring
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  LuckRingReader:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Support/Info.plist
+        buildPhase: none
+    dependencies:
+      - framework: ../SDK/SDK/BluetoothLibrary.framework
+        embed: true
+        codeSign: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.luckring.reader
+        INFOPLIST_FILE: Support/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        FRAMEWORK_SEARCH_PATHS:
+          - $(SRCROOT)/../SDK/SDK
+        # The vendor framework is arm64 device-only (no simulator slice),
+        # so the simulator is not a valid destination.
+        SUPPORTED_PLATFORMS: iphoneos
+        SUPPORTS_MACCATALYST: NO
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks
