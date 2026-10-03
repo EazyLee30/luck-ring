@@ -9,6 +9,8 @@ final class HealthStore: ObservableObject {
     // Data
     @Published private(set) var days: [DailySnapshot] = []
     @Published var goals: Goals = Goals()
+    /// Order the wearer arranged their metric shortcuts in.
+    @Published var shortcutOrder: [String] = Shortcut.defaultOrder
     @Published private(set) var connection: RingConnection = .demo
     @Published private(set) var batteryPercent: Int?
     @Published private(set) var ringName: String = "Luck Ring"
@@ -168,6 +170,7 @@ final class HealthStore: ObservableObject {
         days[target].workoutLog.append(workout)
         days[target].workoutLog.sort { $0.start < $1.start }
         baseline = Baseline.make(from: days)
+        persist()
     }
 
     /// Folds inferred sessions into the day, skipping anything overlapping one
@@ -216,6 +219,7 @@ final class HealthStore: ObservableObject {
     // MARK: - Actions
 
     func start() {
+        restore()
         bridge.start()
         if case .demo = bridge.connection {
             loadDemoData()
@@ -228,6 +232,45 @@ final class HealthStore: ObservableObject {
     }
 
     func setConnection(_ state: RingConnection) { connection = state }
+
+    /// Wipe locally stored history. Does not touch the ring.
+    func deleteLocalHistory() {
+        HistoryStore.shared.deleteAll()
+        days = []
+        baseline = nil
+        if case .demo = connection { loadDemoData() }
+    }
+
+    var localStorageBytes: Int64 { HistoryStore.shared.fileSizeBytes }
+
+    // MARK: - Persistence
+
+    /// Loads persisted history, falling back to generated data on a fresh install
+    /// so the UI is never empty.
+    func restore() {
+        shortcutOrder = HistoryStore.shared.loadPreferences().shortcutOrder
+
+        if case .demo = bridge.connection {
+            shortcutOrder = Shortcut.defaultOrder
+            return
+        }
+        let saved = HistoryStore.shared.load()
+        if saved.days.isEmpty {
+            loadDemoData()
+        } else {
+            days = saved.days.sorted { $0.date < $1.date }
+            goals = saved.goals
+            baseline = Baseline.make(from: days)
+        }
+    }
+
+    /// Called after every mutation. Writes are coalesced onto a utility queue and
+    /// are atomic, so a crash mid-write cannot truncate the existing file.
+    func persist() {
+        HistoryStore.shared.save(days: days, goals: goals)
+        HistoryStore.shared.savePreferences(
+            HistoryStore.Preferences(shortcutOrder: shortcutOrder))
+    }
 
     // MARK: - Ingestion
 
@@ -259,6 +302,7 @@ final class HealthStore: ObservableObject {
         days = Array(days.suffix(120))
         baseline = Baseline.make(from: days)
         lastSync = Date()
+        persist()
     }
 
     /// Which midnight a record belongs to.

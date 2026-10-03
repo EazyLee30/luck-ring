@@ -17,12 +17,18 @@ final class DeviceRingBridge: RingBridge {
     private var k6: CEProductK6 { CEProductK6.shareInstance()! }
     private var tokens: [NSObjectProtocol] = []
 
+    /// Packets the SDK declares but does not decode. See MotionResearch: there is
+    /// no raw IMU stream exposed, and this captures the only evidence that could
+    /// disprove that. Main-actor isolated because the inspector is observable.
+    @MainActor lazy var motionInspector = MotionPacketInspector()
+
     func start() {
         DataLog.shared.start()
 
         k6.receiveOriginalDataHandler = { [weak self] data in
             guard let data else { return }
             DataLog.shared.appendHex(kind: "rx", data)
+            self?.latestRawFrame = data
             self?.onLogLine?("rx \(data.count)B")
         }
         k6.sendOriginalDataHandler = { [weak self] data in
@@ -206,8 +212,16 @@ final class DeviceRingBridge: RingBridge {
             return
         }
 
+        if MotionResearch.undecodedFuncTypes.contains(type) {
+            let frame = latestRawFrame
+            Task { @MainActor in motionInspector.record(funcType: type, raw: frame) }
+        }
         onRecords?(records(for: type, data: payload))
     }
+
+    /// Last frame handed over by the SDK, kept so an undecoded payload can be
+    /// examined as it arrived.
+    private var latestRawFrame = Data()
 
     private func records(for type: Int, data: Any?) -> [IngestedRecord] {
         guard let dict = data as? [String: Any] else { return [] }
