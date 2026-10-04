@@ -15,12 +15,11 @@ struct TodayAnchor: ViewModifier {
 
     let anchor: Anchor
 
+    /// Only expresses the top position. `.middle` and `.bottom` are handled by an
+    /// explicit `scrollTo` in TodayView, because `defaultScrollAnchor` has no way to
+    /// name a mid-scroll target.
     func body(content: Content) -> some View {
-        switch anchor {
-        case .top: content.defaultScrollAnchor(.top)
-        case .middle: content
-        case .bottom: content.defaultScrollAnchor(.bottom)
-        }
+        content.defaultScrollAnchor(.top)
     }
 }
 

@@ -23,17 +23,17 @@
 
 <div align="center">
 
-| 今日 | 睡眠详情 | 生命体征 |
-|:---:|:---:|:---:|
-| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/sleep-detail.png" width="230"> | <img src="docs/images/vitals.png" width="230"> |
+| 今日 | 睡眠详情 | 生命体征 | 我的健康 |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/images/today-top.png" width="200"> | <img src="docs/images/sleep-detail.png" width="200"> | <img src="docs/images/vitals.png" width="200"> | <img src="docs/images/health.png" width="200"> |
 
-| 我的健康 | 你的数据 | |
-|:---:|:---:|:---:|
-| <img src="docs/images/health.png" width="230"> | <img src="docs/images/data.png" width="230"> |
+| 周与月 | 月历 | 今日（下滑） | 你的数据 |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/images/period.png" width="200"> | <img src="docs/images/period-calendar.png" width="200"> | <img src="docs/images/today-detail.png" width="200"> | <img src="docs/images/data.png" width="200"> |
 
 </div>
 
-<div align="center"><sub>三个 tab，沿用健康类 App 的通用信息架构 —— 截图来自 demo target，不需要戒指在场</sub></div>
+<div align="center"><sub>demo target 的八个界面 —— 不需要戒指在场。截图为模拟器抓图，由 <code>scripts/make-readme-assets.py</code> 生成</sub></div>
 
 ---
 

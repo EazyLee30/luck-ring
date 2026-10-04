@@ -228,15 +228,81 @@ def build_banner(screens=("today-top", "vitals", "health")):
 
 # ------------------------------------------------------------------- tiles
 
+# Single source of truth for the screenshot set. The README grid is checked
+# against this list, so adding a screen here and forgetting the README fails loudly
+# instead of leaving a ragged row behind.
+TILES = [
+    "today-top",
+    "today-detail",
+    "sleep-detail",
+    "vitals",
+    "health",
+    "data",
+    "period",
+    "period-calendar",
+]
+
+READMES = ["README.md", "README.zh-CN.md"]
+
 
 def build_tiles():
-    for name in ["today-top", "today-detail", "sleep-detail", "vitals", "health",
-                 "data", "period", "period-calendar"]:
+    for name in TILES:
         shot = load_screen(name, 420)
         shot.save(os.path.join(OUT, name + ".png"), optimize=True)
         print("wrote docs/images/%s.png" % name)
 
 
+def referenced_images(text):
+    """Every docs/images/... path a README points at."""
+    import re
+
+    return set(re.findall(r'src="(docs/images/[^"]+)"', text))
+
+
+def verify_readme_images():
+    """Fail if a README points at a missing file, or a generated tile goes unused.
+
+    Both halves matter. A broken src renders as a gap in the grid, and a tile
+    nobody references means a screen was captured and then quietly dropped from
+    the README - which is exactly how the last row ended up holding one image.
+    """
+    import re
+
+    problems = []
+    referenced = {}
+
+    for readme in READMES:
+        path = os.path.join(ROOT, readme)
+        if not os.path.exists(path):
+            problems.append("missing README: %s" % readme)
+            continue
+        with open(path, encoding="utf-8") as handle:
+            refs = referenced_images(handle.read())
+        referenced[readme] = refs
+
+        for ref in sorted(refs):
+            # The hero banner is generated separately below.
+            if not os.path.exists(os.path.join(ROOT, ref)):
+                problems.append("%s references a missing image: %s" % (readme, ref))
+
+    generated = {"docs/images/%s.png" % name for name in TILES}
+    for readme, refs in referenced.items():
+        for unused in sorted(generated - refs):
+            problems.append(
+                "%s never shows the generated tile %s" % (readme, os.path.basename(unused))
+            )
+
+    if not os.path.exists(os.path.join(OUT, "banner.jpg")):
+        problems.append("README hero banner docs/images/banner.jpg is missing")
+
+    if problems:
+        raise SystemExit(
+            "README image check failed:\n  - " + "\n  - ".join(problems)
+        )
+    print("README images: %d tiles referenced by all %d READMEs" % (len(TILES), len(READMES)))
+
+
 if __name__ == "__main__":
     build_banner()
     build_tiles()
+    verify_readme_images()

@@ -120,3 +120,25 @@ jobs:
             Tools/ScoreReport/main.swift \
             -o /tmp/score-report
           /tmp/score-report
+
+  docs:
+    name: README images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches a README that points at a file that was never committed, and a
+      # screenshot that gets captured but never makes it into the grid. Both have
+      # happened, and both render as an unexplained gap.
+      #
+      # Pillow is needed because the script imports it at module level; the check
+      # itself only reads files.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pillow
+        run: pip install --quiet Pillow
+
+      - name: Verify every README image resolves
+        run: python3 scripts/make-readme-assets.py

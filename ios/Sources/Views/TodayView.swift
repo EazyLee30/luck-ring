@@ -17,6 +17,7 @@ struct TodayView: View {
     private var day: DailySnapshot? { store.selectedDay }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 18) {
                 header
@@ -28,11 +29,13 @@ struct TodayView: View {
                     heroCard
                     actionItems
                     trainingCard
+                        .id("training")
                     if let day {
                         if let sleep = day.sleep { sleepCard(day, sleep) }
                         readinessCard(day)
                         activityCard(day)
                         DerivedMetricsCard(store: store)
+                            .id("derived")
                         vitalsCard(day)
                         timelineCard(day)
                     }
@@ -45,6 +48,25 @@ struct TodayView: View {
         .refreshable { store.refresh() }
         .sheet(isPresented: $showTraining) { WorkoutSheet(store: store) }
         .sheet(isPresented: $showShare) { ShareTemplateSheet(store: store) }
+        .onAppear { scrollToLaunchAnchor(proxy) }
+        }
+    }
+
+    /// `defaultScrollAnchor` only expresses top and bottom, so the mid-scroll
+    /// capture needs an explicit scroll target. Two hops are required: the first
+    /// runs before the scroll view has a content size, so only the second lands.
+    private func scrollToLaunchAnchor(_ proxy: ScrollViewProxy) {
+        let anchor = TodayView.launchAnchor
+        guard anchor != .top else { return }
+        // Both anchors name a real element: "derived" for the mid-scroll capture,
+        // "training" for the bottom one.
+        let target = anchor == .middle ? "derived" : "training"
+        DispatchQueue.main.async {
+            withAnimation(.none) { proxy.scrollTo(target, anchor: .top) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.none) { proxy.scrollTo(target, anchor: .top) }
+            }
+        }
     }
 
     // MARK: - Header
