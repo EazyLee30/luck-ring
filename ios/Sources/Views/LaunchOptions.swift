@@ -33,3 +33,18 @@ extension TodayView {
         }
     }
 }
+extension RootTabView {
+    /// `-openDetail sleep|activity` pushes a detail screen on launch, so a
+    /// screenshot or UI test can land on one without tapping.
+    static var launchRoute: DetailRoute? {
+        guard let value = LaunchOption.value("-openDetail") else { return nil }
+        let today = Date()
+        switch value.lowercased() {
+        case "sleep": return .sleep(today)
+        case "activity": return .activity(today)
+        case "readiness": return .readiness(today)
+        case "vitals": return .vitals(today)
+        default: return nil
+        }
+    }
+}

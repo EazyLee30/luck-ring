@@ -17,6 +17,7 @@ struct VitalsView: View {
                     activitySection(day)
                     coreMetricsSection(day)
                     cardiovascularSection(day)
+                    DerivedMetricsCard(store: store)
                     trendSection()
                 } else {
                     Text("No data for the selected day.")

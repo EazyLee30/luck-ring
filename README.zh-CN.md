@@ -23,9 +23,13 @@
 
 <div align="center">
 
-| 今日 | 生命体征 | 我的健康 |
+| 今日 | 睡眠详情 | 生命体征 |
 |:---:|:---:|:---:|
-| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/vitals.png" width="230"> | <img src="docs/images/health.png" width="230"> |
+| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/sleep-detail.png" width="230"> | <img src="docs/images/vitals.png" width="230"> |
+
+| 我的健康 | | |
+|:---:|:---:|:---:|
+| <img src="docs/images/health.png" width="230"> | | |
 
 </div>
 
@@ -97,7 +101,7 @@ App 只跟戒指说话。
 <tr>
 <td>
 
-**39 个单元测试**
+**90 个单元测试**
 <br><br>
 分数边界全空间扫描、单调性、退化输入、睡眠会话装配 ——
 两个真 bug 就藏在这两处。
@@ -182,7 +186,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 39 tests, with 0 failures
+Executed 90 tests, with 0 failures
 ```
 
 写测试的过程揪出了 **4 个真 bug**，全部已修并补了回归测试：
@@ -260,7 +264,11 @@ ios/
     Previews/                  SwiftUI 预览
     Shared/Editorial.swift      设计系统基础组件
   Tools/ScoreReport/           离线的分数与不变量校验工具
-  Tests/                       ScoreEngineTests · SleepSessionTests（39 个用例）
+    Shared/Workouts.swift       运动模型、MET 计算、自动识别
+    Shared/DerivedMetrics.swift 派生指标（带免责说明）
+    Shared/HistoryStore.swift   原子写入的 JSON 持久化
+    Shared/MotionResearch.swift IMU 结论 + 报文捕获器
+  Tests/                       6 个套件共 90 个用例
 scripts/make-readme-assets.py  重新生成 banner 与截图
 SDK/                           厂商文档、头文件与 demo 工程
 ```

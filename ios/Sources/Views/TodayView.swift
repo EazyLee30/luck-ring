@@ -7,8 +7,12 @@ struct TodayView: View {
     @ObservedObject var store: HealthStore
     @Binding var showDevice: Bool
 
+    /// Navigation path, owned by the enclosing stack.
+    @Binding var path: [DetailRoute]
+
     @State private var shortcutOrder = Shortcut.defaultOrder
     @State private var showTraining = false
+    @State private var showShare = false
 
     private var day: DailySnapshot? { store.selectedDay }
 
@@ -28,6 +32,7 @@ struct TodayView: View {
                         if let sleep = day.sleep { sleepCard(day, sleep) }
                         readinessCard(day)
                         activityCard(day)
+                        DerivedMetricsCard(store: store)
                         vitalsCard(day)
                         timelineCard(day)
                     }
@@ -39,6 +44,7 @@ struct TodayView: View {
         .background(Palette.bg.ignoresSafeArea())
         .refreshable { store.refresh() }
         .sheet(isPresented: $showTraining) { WorkoutSheet(store: store) }
+        .sheet(isPresented: $showShare) { ShareTemplateSheet(store: store) }
     }
 
     // MARK: - Header
@@ -62,7 +68,18 @@ struct TodayView: View {
 
             Spacer()
 
-            Button { showDevice = true } label: {
+            Spacer()
+
+            HStack(spacing: 16) {
+                Button { showShare = true } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Palette.textPrimary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Share this day")
+
+                Button { showDevice = true } label: {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "circle.dotted.circle")
                         .font(.system(size: 18, weight: .medium))
@@ -77,9 +94,10 @@ struct TodayView: View {
                             .offset(x: 7, y: -4)
                     }
                 }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Ring and device settings")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Ring and device settings")
         }
         .padding(.horizontal, 18)
         .padding(.top, 6)
@@ -265,6 +283,10 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 15) {
                 CardHeaderRow(title: "Sleep", symbol: "bed.double.fill",
                               status: verdict.title.uppercased(), tint: Palette.sleep)
+                    .onTapGesture {
+                        path.append(.sleep(day.date))
+                        Haptics.tap()
+                    }
 
                 HStack(alignment: .center, spacing: 14) {
                     ScoreWithMark(score: score.total, symbol: "crown.fill", size: 44)
@@ -316,6 +338,10 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 15) {
                 CardHeaderRow(title: "Readiness", symbol: "bolt.heart.fill",
                               status: verdict.title.uppercased(), tint: Palette.readiness)
+                    .onTapGesture {
+                        path.append(.readiness(day.date))
+                        Haptics.tap()
+                    }
 
                 HStack(alignment: .center, spacing: 14) {
                     ScoreWithMark(score: score.total, symbol: "crown.fill", size: 44)
@@ -371,6 +397,10 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 15) {
                 CardHeaderRow(title: "Activity goal", symbol: "flame.fill",
                               status: verdict.title.uppercased(), tint: Palette.activity)
+                    .onTapGesture {
+                        path.append(.activity(day.date))
+                        Haptics.tap()
+                    }
 
                 HStack(alignment: .center, spacing: 14) {
                     ScoreWithMark(score: score.total, size: 44)
@@ -417,6 +447,10 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 13) {
                 CardHeaderRow(title: "Vitals", symbol: "waveform.path.ecg",
                               tint: Palette.oxygen)
+                    .onTapGesture {
+                        path.append(.vitals(day.date))
+                        Haptics.tap()
+                    }
 
                 if let bp = day.latestBloodPressure {
                     MetricRow(title: "Blood pressure",

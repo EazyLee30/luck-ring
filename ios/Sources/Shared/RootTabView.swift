@@ -7,6 +7,10 @@ struct RootTabView: View {
     @State private var tab: Tab = Tab.fromLaunchArguments()
     @State private var showActions = false
     @State private var showDevice = false
+    /// Owned by the stack, not by Today. A path declared inside a scroll view
+    /// and pushed from a child is the fragile version of this and silently did
+    /// nothing on launch.
+    @State private var todayPath: [DetailRoute] = RootTabView.launchRoute.map { [$0] } ?? []
 
     enum Tab: Hashable { case today, vitals, health }
 
@@ -23,15 +27,36 @@ struct RootTabView: View {
             // back buttons and sheets behave.
             switch tab {
             case .today:
-                TodayView(store: store, showDevice: $showDevice)
+                NavigationStack(path: $todayPath) {
+                    TodayView(store: store, showDevice: $showDevice,
+                              path: $todayPath)
+                        .toolbar(.hidden, for: .navigationBar)
+                        .navigationDestination(for: DetailRoute.self) { route in
+                            switch route {
+                            case .sleep(let date):
+                                SleepDetailView(date: date, store: store)
+                            case .activity(let date), .vitals(let date):
+                                ActivityDetailView(date: date, store: store)
+                            case .readiness(let date):
+                                SleepDetailView(date: date, store: store)
+                            case .training:
+                                WorkoutSheet(store: store)
+                            }
+                        }
+                }
             case .vitals:
                 NavigationStack { VitalsView(store: store) }
             case .health:
                 NavigationStack { HealthView(store: store) }
             }
 
+            // A pushed detail screen is a drill-down, not a tab: the bar comes
+            // out so the back button owns the bottom of the screen, which is what
+            // every native navigation flow does.
             FloatingTabBar(selection: $tab) { showActions = true }
                 .padding(.bottom, 2)
+                .opacity(todayPath.isEmpty ? 1 : 0)
+                .allowsHitTesting(todayPath.isEmpty)
         }
         .animation(.easeOut(duration: 0.2), value: tab)
         .preferredColorScheme(.dark)

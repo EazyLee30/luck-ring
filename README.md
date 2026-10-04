@@ -23,9 +23,13 @@
 
 <div align="center">
 
-| Today | Vitals | My Health |
+| Today | Sleep detail | Vitals |
 |:---:|:---:|:---:|
-| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/vitals.png" width="230"> | <img src="docs/images/health.png" width="230"> |
+| <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/sleep-detail.png" width="230"> | <img src="docs/images/vitals.png" width="230"> |
+
+| My Health | | |
+|:---:|:---:|:---:|
+| <img src="docs/images/health.png" width="230"> | | |
 
 </div>
 
@@ -89,7 +93,23 @@ data requirement and refuses to answer before it is met.
 </td>
 <td>
 
-**Original design system**
+**Detail screens, not inline walls**
+<br><br>
+Tapping a score pushes a screen with the arc gauge, the contributor
+breakdown, a stage timeline and a trend — instead of unfolding everything on
+one scroll.
+
+</td>
+<td>
+
+**Derived metrics, labelled as such**
+<br><br>
+Respiratory rate, a stress proxy, sleep regularity and recovery debt. Each
+shows its caveat on tap, and returns nothing rather than guessing when its
+inputs are missing.
+
+</td>
+<td>
 <br><br>
 `Editorial.swift` holds the primitives — arc gauge, range scale, segmented
 indicator, hatched bar, editorial card. Patterns, not a traced copy.
@@ -104,7 +124,7 @@ indicator, hatched bar, editorial card. Patterns, not a traced copy.
 <tr>
 <td>
 
-**39 unit tests**
+**90 unit tests**
 <br><br>
 Score bounds swept across the input space, monotonicity, degenerate input, and
 sleep-session assembly — the two places real bugs hid.
@@ -192,7 +212,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 39 tests, with 0 failures
+Executed 90 tests, with 0 failures
 ```
 
 Writing them found four real bugs, all now fixed with regression tests:
@@ -270,7 +290,11 @@ ios/
     Previews/                  SwiftUI previews
     Shared/Editorial.swift      design-system primitives
   Tools/ScoreReport/           headless score + invariant harness
-  Tests/                       ScoreEngineTests · SleepSessionTests (39 cases)
+    Shared/Workouts.swift       workout model, MET maths, detection
+    Shared/DerivedMetrics.swift estimates, with caveats
+    Shared/HistoryStore.swift   atomic JSON persistence
+    Shared/MotionResearch.swift IMU findings + packet inspector
+  Tests/                       90 cases across 6 suites
 scripts/make-readme-assets.py  regenerates the banner and screenshot tiles
 SDK/                           vendor docs, headers and demo project
 ```
