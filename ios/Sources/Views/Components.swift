@@ -7,6 +7,10 @@ struct Sparkline: View {
     let values: [Double]
     var tint: Color
     var baseline: Double?
+    /// Spoken instead of the geometry. Declared after the required properties so
+    /// the memberwise initialiser keeps working for existing call sites.
+    var accessibilityName: String = "trend"
+    var unit: String = "points"
 
     var body: some View {
         GeometryReader { geo in
@@ -41,6 +45,10 @@ struct Sparkline: View {
                 }
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityName)
+        .accessibilityValue(ChartDescription.trend(values.map { Int($0.rounded()) },
+                                                   unit: unit, name: accessibilityName))
     }
 }
 
@@ -134,7 +142,7 @@ struct RingStatusPill: View {
                 .fill(store.connection.isLive ? Palette.good : Palette.textTertiary)
                 .frame(width: 7, height: 7)
             Text(store.connection.label)
-                .font(.label(11))
+                .scaledFont(11, weight: .medium)
                 .foregroundStyle(Palette.textSecondary)
                 .lineLimit(1)
         }
@@ -166,10 +174,10 @@ struct DayStrip: View {
                         } label: {
                             VStack(spacing: 3) {
                                 Text(Fmt.dayTick(date))
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .scaledFont(10, weight: .semibold)
                                     .foregroundStyle(selected ? Palette.bg : Palette.textTertiary)
                                 Text("\(Calendar.current.component(.day, from: date))")
-                                    .font(.metric(16))
+                                    .scaledFont(16, weight: .semibold, design: .rounded)
                                     .foregroundStyle(selected ? Palette.bg : Palette.textPrimary)
                             }
                             .frame(width: 42, height: 50)
@@ -212,12 +220,12 @@ struct Section<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title.uppercased())
-                    .font(.system(size: 11, weight: .bold))
+                    .scaledFont(11, weight: .bold)
                     .tracking(1.1)
                     .foregroundStyle(Palette.textSecondary)
                 if let caption {
                     Text(caption)
-                        .font(.label(11))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }

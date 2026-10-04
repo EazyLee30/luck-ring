@@ -41,17 +41,10 @@ extension Color {
 
 // MARK: - Typography
 
-extension Font {
-    static func score(_ size: CGFloat = 34) -> Font {
-        .system(size: size, weight: .bold, design: .rounded)
-    }
-    static func metric(_ size: CGFloat = 20, weight: Font.Weight = .semibold) -> Font {
-        .system(size: size, weight: weight, design: .rounded)
-    }
-    static func label(_ size: CGFloat = 12) -> Font {
-        .system(size: size, weight: .medium)
-    }
-}
+// There is deliberately no `Font.score(_:)` / `.metric(_:)` / `.label(_:)` helper any
+// more. Those returned `.system(size:)`, which ignores the user's Dynamic Type
+// setting, and a helper whose name looks safe is exactly what gets reached for
+// again. Sizes go through `View.scaledFont(_:weight:design:)`, which scales.
 
 // MARK: - Score gauge
 
@@ -87,18 +80,18 @@ struct ScoreGauge: View {
 
             VStack(spacing: -2) {
                 Text("\(score)")
-                    .font(.score(size * 0.34))
+                    .scaledFont(size * 0.34, weight: .bold, design: .rounded)
                     .foregroundStyle(Palette.textPrimary)
                     .contentTransition(.numericText())
                 if let label {
                     Text(label.uppercased())
-                        .font(.system(size: size * 0.085, weight: .bold))
+                        .scaledFont(size * 0.085, weight: .bold)
                         .tracking(0.8)
                         .foregroundStyle(tint)
                 }
                 if let caption {
                     Text(caption)
-                        .font(.system(size: size * 0.085, weight: .medium))
+                        .scaledFont(size * 0.085, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -146,10 +139,10 @@ struct SectionHeader: View {
     var body: some View {
         HStack(spacing: 6) {
             if let icon {
-                Image(systemName: icon).font(.system(size: 12, weight: .bold))
+                Image(systemName: icon).scaledFont(12, weight: .bold)
             }
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .bold))
+                .scaledFont(11, weight: .bold)
                 .tracking(1.1)
         }
         .foregroundStyle(tint)
@@ -171,20 +164,20 @@ struct MiniStat: View {
     var body: some View {
         VStack(spacing: 3) {
             Text(title)
-                .font(.system(size: 11, weight: .medium))
+                .scaledFont(11, weight: .medium)
                 .foregroundStyle(Palette.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.metric(18))
+                    .scaledFont(18, weight: .semibold, design: .rounded)
                     .foregroundStyle(tint)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .contentTransition(.numericText())
                 if let unit {
                     Text(unit)
-                        .font(.system(size: 9, weight: .medium))
+                        .scaledFont(9, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -205,16 +198,16 @@ struct StatRow: View {
         VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(title)
-                    .font(.label(13))
+                    .scaledFont(13, weight: .medium)
                     .foregroundStyle(Palette.textSecondary)
                 Spacer(minLength: 8)
                 Text(value)
-                    .font(.metric(17))
+                    .scaledFont(17, weight: .semibold, design: .rounded)
                     .foregroundStyle(tint)
                     .contentTransition(.numericText())
                 if let unit {
                     Text(unit)
-                        .font(.label(11))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -251,7 +244,7 @@ struct Chip: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .semibold))
+            .scaledFont(12, weight: .semibold)
             .foregroundStyle(filled ? Palette.bg : tint)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
@@ -296,11 +289,11 @@ struct LegendItem: View {
         HStack(spacing: 6) {
             Circle().fill(tint).frame(width: 8, height: 8)
             Text(label)
-                .font(.label(12))
+                .scaledFont(12, weight: .medium)
                 .foregroundStyle(Palette.textSecondary)
             Spacer(minLength: 4)
             Text(value)
-                .font(.metric(13))
+                .scaledFont(13, weight: .semibold, design: .rounded)
                 .foregroundStyle(Palette.textPrimary)
         }
     }
@@ -321,12 +314,12 @@ struct ScoreRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
                     Text(verdict)
-                        .font(.metric(18))
+                        .scaledFont(18, weight: .semibold, design: .rounded)
                         .foregroundStyle(Palette.textPrimary)
                     Chip(text: title.uppercased(), tint: tint)
                 }
                 Text(detail)
-                    .font(.label(12))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -411,9 +404,9 @@ struct DeltaChip: View {
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: isFlat ? "minus" : (delta > 0 ? "arrow.up.right" : "arrow.down.right"))
-                .font(.system(size: 9, weight: .bold))
+                .scaledFont(9, weight: .bold)
             Text(isFlat ? "avg" : "\(abs(delta))\(unit)")
-                .font(.system(size: 11, weight: .semibold))
+                .scaledFont(11, weight: .semibold)
         }
         .foregroundStyle(tint)
         .padding(.horizontal, 7)
@@ -446,14 +439,14 @@ struct ProgressRing: View {
             VStack(spacing: 0) {
                 if let value {
                     Text(value)
-                        .font(.system(size: size * 0.25, weight: .bold, design: .rounded))
+                        .scaledFont(size * 0.25, weight: .bold, design: .rounded)
                         .foregroundStyle(Palette.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
                 }
                 if let caption {
                     Text(caption)
-                        .font(.system(size: size * 0.14, weight: .medium))
+                        .scaledFont(size * 0.14, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -478,7 +471,7 @@ struct ScoreHero: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("\(score)")
-                        .font(.score(46))
+                        .scaledFont(46, weight: .bold, design: .rounded)
                         .foregroundStyle(
                             LinearGradient(colors: [Palette.textPrimary, tint.opacity(0.8)],
                                            startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -486,10 +479,10 @@ struct ScoreHero: View {
                     if let delta { DeltaChip(delta: delta) }
                 }
                 Text(verdict)
-                    .font(.metric(21))
+                    .scaledFont(21, weight: .semibold, design: .rounded)
                     .foregroundStyle(tint)
                 Text(detail)
-                    .font(.label(12))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -515,18 +508,18 @@ struct MetricRow: View {
         VStack(spacing: 7) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(title)
-                    .font(.label(13))
+                    .scaledFont(13, weight: .medium)
                     .foregroundStyle(Palette.textSecondary)
                     .lineLimit(1)
                 Spacer(minLength: 6)
                 Text(value)
-                    .font(.metric(17))
+                    .scaledFont(17, weight: .semibold, design: .rounded)
                     .foregroundStyle(tint)
                     .lineLimit(1)
                     .contentTransition(.numericText())
                 if let unit {
                     Text(unit)
-                        .font(.label(11))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
                 if let delta {
@@ -557,7 +550,7 @@ struct ContributionStrip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             Text("SCORE CONTRIBUTIONS")
-                .font(.system(size: 10, weight: .bold))
+                .scaledFont(10, weight: .bold)
                 .tracking(0.9)
                 .foregroundStyle(Palette.textTertiary)
 
@@ -572,11 +565,11 @@ struct ContributionStrip: View {
                     HStack(spacing: 5) {
                         Circle().fill(part.tint).frame(width: 6, height: 6)
                         Text(part.label)
-                            .font(.system(size: 10, weight: .medium))
+                            .scaledFont(10, weight: .medium)
                             .foregroundStyle(Palette.textTertiary)
                             .lineLimit(1)
                         Text("\(part.points)/\(part.max)")
-                            .font(.system(size: 10, weight: .semibold))
+                            .scaledFont(10, weight: .semibold)
                             .foregroundStyle(Palette.textSecondary)
                             .lineLimit(1)
                     }

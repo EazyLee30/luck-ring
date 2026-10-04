@@ -159,7 +159,7 @@ struct SleepDetailView: View {
                     Spacer()
                     Text(Fmt.clock(sleep.end))
                 }
-                .font(.system(size: 10, weight: .medium))
+                .scaledFont(10, weight: .medium)
                 .foregroundStyle(Palette.textTertiary)
             }
             .padding(16)
@@ -186,7 +186,7 @@ struct SleepDetailView: View {
                           value: value.map { Fmt.percent($0) } ?? "—",
                           tint: Palette.sleep, progress: value)
                 Text("How consistent your bedtime has been over the last \(store.recentWeekDays.count) nights. Needs at least three.")
-                    .font(.system(size: 11))
+                    .scaledFont(11)
                     .foregroundStyle(Palette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -197,7 +197,7 @@ struct SleepDetailView: View {
     private var missing: some View {
         GlowCard {
             Text("No sleep recorded for \(Fmt.dayTitle(date)). Keep the ring on overnight — stages are detected while you wear it.")
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(Palette.textSecondary)
                 .padding(18)
         }
@@ -230,7 +230,7 @@ struct ActivityDetailView: View {
                 } else {
                     GlowCard {
                         Text("No movement data for \(Fmt.dayTitle(date)).")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(Palette.textSecondary)
                             .padding(18)
                     }
@@ -329,7 +329,7 @@ struct ActivityDetailView: View {
 
                 if log.isEmpty {
                     Text("No sessions logged. Ambient steps still count toward your step goal, but not toward training load.")
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(Palette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
@@ -338,19 +338,19 @@ struct ActivityDetailView: View {
                             IconBadge(symbol: w.kind.symbol, tint: Palette.activity, size: 30)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(w.kind.title)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .scaledFont(14, weight: .medium)
                                     .foregroundStyle(Palette.textPrimary)
                                 Text("\(Fmt.clock(w.start)) · \(Fmt.duration(w.duration))"
                                      + (w.distanceMetres > 0
                                         ? " · \(Fmt.distance(w.distanceMetres))\(Fmt.distanceUnit(w.distanceMetres))"
                                         : "")
                                      + (w.averageHR.map { " · \($0) bpm" } ?? ""))
-                                    .font(.system(size: 11))
+                                    .scaledFont(11)
                                     .foregroundStyle(Palette.textTertiary)
                             }
                             Spacer()
                             Text("\(w.calories)")
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .scaledFont(15, weight: .semibold, design: .rounded)
                                 .foregroundStyle(Palette.textPrimary)
                         }
                     }
@@ -379,11 +379,11 @@ struct ActivityDetailView: View {
                         Spacer()
                         Text(Fmt.dayTick(points.last!.day.date))
                     }
-                    .font(.system(size: 10, weight: .medium))
+                    .scaledFont(10, weight: .medium)
                     .foregroundStyle(Palette.textTertiary)
                 } else {
                     Text("Need at least two days of data.")
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }

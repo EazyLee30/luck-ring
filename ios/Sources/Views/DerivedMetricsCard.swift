@@ -15,7 +15,7 @@ struct DerivedMetricsCard: View {
                               status: "ESTIMATES", tint: Palette.temp)
 
                 Text("Computed from readings above — not measured by the ring.")
-                    .font(.system(size: 12))
+                    .scaledFont(12)
                     .foregroundStyle(Palette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -26,11 +26,11 @@ struct DerivedMetricsCard: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Recovery debt")
-                                .font(.system(size: 14))
+                                .scaledFont(14)
                                 .foregroundStyle(Palette.textPrimary)
                             Spacer()
                             Text(debtLabel)
-                                .font(.system(size: 13, weight: .medium))
+                                .scaledFont(13, weight: .medium)
                                 .foregroundStyle(debtTint)
                         }
                         Bar(progress: debt, tint: debtTint, height: 4)
@@ -98,33 +98,33 @@ struct DerivedMetricsCard: View {
                 HStack(spacing: 10) {
                     IconBadge(symbol: symbol, tint: tint, size: 28)
                     Text(title)
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .foregroundStyle(Palette.textPrimary)
                     Spacer()
                     if let value {
                         Text(value)
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .scaledFont(16, weight: .semibold, design: .rounded)
                             .foregroundStyle(value == "—" ? Palette.textTertiary : tint)
                     }
                     if let unit {
                         Text(unit)
-                            .font(.system(size: 11))
+                            .scaledFont(11)
                             .foregroundStyle(Palette.textTertiary)
                     }
                     Image(systemName: expandedCaveat == caveat ? "chevron.down" : "info.circle")
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(Palette.textTertiary)
                 }
 
                 if expandedCaveat == caveat {
                     Text(caveat)
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(Palette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                         .transition(.opacity)
                 } else if value == nil {
                     Text("Not enough data for this one.")
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }

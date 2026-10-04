@@ -164,11 +164,11 @@ struct ShareTemplateSheet: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Image(systemName: t.symbol)
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .scaledFont(15, weight: .semibold)
                                 Text(t.title)
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .scaledFont(12, weight: .semibold)
                                 Text(t.blurb)
-                                    .font(.system(size: 10))
+                                    .scaledFont(10)
                                     .foregroundStyle(Palette.textTertiary)
                                     .lineLimit(2)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -198,7 +198,7 @@ struct ShareTemplateSheet: View {
                         CardHeaderRow(title: "Not enough history",
                                       symbol: "exclamationmark.triangle.fill", tint: Palette.warn)
                         Text("\(composer.template.title) needs at least \(composer.template.requiresHistoryDays) days of data and you have \(store.recentWeekDays.count).")
-                            .font(.system(size: 12))
+                            .scaledFont(12)
                             .foregroundStyle(Palette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -218,7 +218,7 @@ struct ShareTemplateSheet: View {
             }
 
             Text("Scores are this app's own model. Not a medical record.")
-                .font(.system(size: 11))
+                .scaledFont(11)
                 .foregroundStyle(Palette.textTertiary)
         }
     }

@@ -59,9 +59,9 @@ struct WorkoutSheet: View {
                         } label: {
                             VStack(spacing: 7) {
                                 Image(systemName: k.symbol)
-                                    .font(.system(size: 19, weight: .semibold))
+                                    .scaledFont(19, weight: .semibold)
                                 Text(k.title)
-                                    .font(.system(size: 11, weight: .medium))
+                                    .scaledFont(11, weight: .medium)
                             }
                             .foregroundStyle(Palette.textPrimary)
                             .frame(maxWidth: .infinity)
@@ -76,7 +76,7 @@ struct WorkoutSheet: View {
 
                 if kind.needsManualTracking {
                     Text("\(kind.title) can't be measured by a ring — you'll enter the distance yourself when you finish.")
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(Palette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -94,10 +94,10 @@ struct WorkoutSheet: View {
                     IconBadge(symbol: active.kind.symbol, tint: Palette.activity, size: 34)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(active.kind.title)
-                            .font(.system(size: 16, weight: .medium))
+                            .scaledFont(16, weight: .medium)
                             .foregroundStyle(Palette.textPrimary)
                         Text("In progress")
-                            .font(.system(size: 11))
+                            .scaledFont(11)
                             .foregroundStyle(Palette.textTertiary)
                     }
                     Spacer()
@@ -105,7 +105,7 @@ struct WorkoutSheet: View {
 
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     Text(Fmt.duration(active.duration))
-                        .font(.system(size: 44, weight: .regular, design: .serif))
+                        .scaledFont(44, weight: .regular, design: .serif)
                         .foregroundStyle(Palette.textPrimary)
                         .contentTransition(.numericText())
                 }
@@ -164,22 +164,22 @@ struct WorkoutSheet: View {
                         IconBadge(symbol: w.kind.symbol, tint: Palette.activity, size: 30)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(w.kind.title)
-                                .font(.system(size: 14, weight: .medium))
+                                .scaledFont(14, weight: .medium)
                                 .foregroundStyle(Palette.textPrimary)
                             Text("\(Fmt.clock(w.start)) · \(Fmt.duration(w.duration))"
                                  + (w.distanceMetres > 0
                                     ? " · \(Fmt.distance(w.distanceMetres))\(Fmt.distanceUnit(w.distanceMetres))"
                                     : ""))
-                                .font(.system(size: 11))
+                                .scaledFont(11)
                                 .foregroundStyle(Palette.textTertiary)
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 1) {
                             Text("\(w.calories)")
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .scaledFont(15, weight: .semibold, design: .rounded)
                                 .foregroundStyle(Palette.textPrimary)
                             Text("kcal")
-                                .font(.system(size: 9))
+                                .scaledFont(9)
                                 .foregroundStyle(Palette.textTertiary)
                         }
                     }

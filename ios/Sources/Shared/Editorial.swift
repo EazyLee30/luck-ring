@@ -27,7 +27,7 @@ struct CapsLabel: View {
 
     var body: some View {
         Text(text.uppercased())
-            .font(.system(size: size, weight: .bold))
+            .scaledFont(size, weight: .bold)
             .tracking(1.4)
             .foregroundStyle(tint)
     }
@@ -43,7 +43,7 @@ struct IconBadge: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: size * 0.42, weight: .semibold))
+            .scaledFont(size * 0.42, weight: .semibold)
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: size * 0.3,
@@ -103,7 +103,7 @@ struct ArcGauge: View {
 
             VStack(spacing: 2) {
                 Text("\(score)")
-                    .font(.system(size: size * 0.29, weight: .regular, design: .serif))
+                    .scaledFont(size * 0.29, weight: .regular, design: .serif)
                     .foregroundStyle(Palette.textPrimary)
                     .contentTransition(.numericText())
                 if let caption {
@@ -177,7 +177,7 @@ struct RangeScale: View {
                 Spacer()
                 Text("\(max)")
             }
-            .font(.system(size: 10, weight: .medium))
+            .scaledFont(10, weight: .medium)
             .foregroundStyle(Palette.textTertiary)
         }
     }
@@ -191,19 +191,38 @@ struct SegmentedScale: View {
     let labels: [String]
     let active: Int
     var tint: Color
+    /// Set by the owner so VoiceOver's increment/decrement gestures move the
+    /// selection instead of doing nothing.
+    var onSelect: ((Int) -> Void)?
 
     var body: some View {
         HStack(spacing: 3) {
             ForEach(Array(labels.enumerated()), id: \.offset) { index, label in
                 Text(label)
-                    .font(.system(size: 11, weight: index == active ? .bold : .medium))
+                    .scaledFont(11, weight: index == active ? .bold : .medium)
                     .foregroundStyle(index == active ? Palette.textPrimary : Palette.textTertiary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 7)
                     .background(
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
                             .fill(index == active ? tint : Palette.surfaceHi))
+                    .accessibilityControl(label: label,
+                                          value: index == active ? "Selected" : "",
+                                          isSelected: index == active)
             }
+        }
+        // One stop for the whole control, adjustable, so a swipe-up or swipe-down
+        // moves through the options the way it would in a native segmented
+        // control. Without this the segments read as unrelated words.
+        .accessibilityElement(children: .contain)
+        .accessibilityAdjustableAction { direction in
+            let next: Int
+            switch direction {
+            case .increment: next = active >= labels.count - 1 ? 0 : active + 1
+            case .decrement: next = active <= 0 ? labels.count - 1 : active - 1
+            @unknown default: return
+            }
+            onSelect?(next)
         }
     }
 }
@@ -222,15 +241,15 @@ struct ContributorRow: View {
         VStack(spacing: 7) {
             HStack(spacing: 6) {
                 Text(title)
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .foregroundStyle(Palette.textPrimary)
                 Spacer(minLength: 8)
                 Text(verdict)
-                    .font(.system(size: 13, weight: .medium))
+                    .scaledFont(13, weight: .medium)
                     .foregroundStyle(tint)
                 if showsChevron {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
+                        .scaledFont(10, weight: .bold)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -310,10 +329,10 @@ struct PillButton: View {
     var body: some View {
         HStack(spacing: 6) {
             if let symbol {
-                Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                Image(systemName: symbol).scaledFont(12, weight: .semibold)
             }
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
+                .scaledFont(14, weight: .semibold)
         }
         .foregroundStyle(filled ? Palette.bg : Palette.textPrimary)
         .padding(.horizontal, 18)
@@ -338,12 +357,12 @@ struct ScoreWithMark: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text("\(score)")
-                .font(.system(size: size, weight: .regular, design: .serif))
+                .scaledFont(size, weight: .regular, design: .serif)
                 .foregroundStyle(tint)
                 .contentTransition(.numericText())
             if let symbol {
                 Image(systemName: symbol)
-                    .font(.system(size: size * 0.24, weight: .semibold))
+                    .scaledFont(size * 0.24, weight: .semibold)
                     .foregroundStyle(Palette.textSecondary)
             }
         }
@@ -371,10 +390,10 @@ struct ShortcutBadge: View {
                     .frame(width: diameter, height: diameter)
                 VStack(spacing: -2) {
                     Image(systemName: symbol)
-                        .font(.system(size: diameter * 0.24, weight: .semibold))
+                        .scaledFont(diameter * 0.24, weight: .semibold)
                         .foregroundStyle(tint)
                     Text(value)
-                        .font(.system(size: diameter * 0.28, weight: .semibold, design: .rounded))
+                        .scaledFont(diameter * 0.28, weight: .semibold, design: .rounded)
                         .foregroundStyle(Palette.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.45)
@@ -382,12 +401,22 @@ struct ShortcutBadge: View {
                 .padding(.horizontal, diameter * 0.12)
             }
             Text(title)
-                .font(.system(size: 10, weight: .medium))
+                .scaledFont(10, weight: .medium)
                 .foregroundStyle(Palette.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
+                // Two lines rather than one: at a 1.35x text scale "Blood oxygen"
+                // cannot fit 82pt on one line at any legible size, and clipping a
+                // label is worse than letting it wrap.
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                // A fixed height keeps the icons on a shared baseline row whether or
+                // not a given title wrapped.
+                .frame(height: diameter * 0.34, alignment: .top)
         }
         .frame(width: diameter + 14)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
     }
 }
 
@@ -472,7 +501,7 @@ struct CardHeaderRow: View {
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.system(size: 15, weight: .medium))
+                    .scaledFont(15, weight: .medium)
                     .foregroundStyle(Palette.textPrimary)
                 if let status {
                     CapsLabel(text: status, tint: tint, size: 9)
@@ -481,7 +510,7 @@ struct CardHeaderRow: View {
             Spacer(minLength: 4)
             if showsChevron {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
+                    .scaledFont(11, weight: .bold)
                     .foregroundStyle(Palette.textTertiary)
             }
         }

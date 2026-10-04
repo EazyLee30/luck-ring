@@ -16,14 +16,14 @@ struct DataCard: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
                     Image(systemName: "internaldrive")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         .foregroundStyle(Palette.textSecondary)
                     Text("Stored history")
-                        .font(.metric(15))
+                        .scaledFont(15, weight: .semibold, design: .rounded)
                         .foregroundStyle(Palette.textPrimary)
                     Spacer()
                     Text("\(days.count) days")
-                        .font(.system(size: 11, weight: .medium))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
 
@@ -40,7 +40,7 @@ struct DataCard: View {
 
                 if clearedNote {
                     Text("Local history deleted. Your ring still holds its own records.")
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(Palette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -65,11 +65,11 @@ struct DataCard: View {
     private func row(_ label: String, _ value: String) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(Palette.textSecondary)
             Spacer()
             Text(value)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .scaledFont(13, weight: .medium, design: .rounded)
                 .foregroundStyle(Palette.textPrimary)
         }
     }
@@ -77,10 +77,10 @@ struct DataCard: View {
     private var exportSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Export as CSV")
-                .font(.system(size: 13, weight: .medium))
+                .scaledFont(13, weight: .medium)
                 .foregroundStyle(Palette.textPrimary)
             Text("Three files: a daily summary, every individual reading, and your sessions. Missing values are left blank rather than written as zero.")
-                .font(.system(size: 11))
+                .scaledFont(11)
                 .foregroundStyle(Palette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -110,9 +110,9 @@ struct DataCard: View {
     private func csvTile(_ title: String) -> some View {
         VStack(spacing: 3) {
             Image(systemName: "tablecells")
-                .font(.system(size: 14, weight: .medium))
+                .scaledFont(14, weight: .medium)
             Text(title)
-                .font(.system(size: 11, weight: .medium))
+                .scaledFont(11, weight: .medium)
         }
         .foregroundStyle(Palette.textPrimary)
         .frame(maxWidth: .infinity)
@@ -124,10 +124,10 @@ struct DataCard: View {
     private var healthSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Apple Health")
-                .font(.system(size: 13, weight: .medium))
+                .scaledFont(13, weight: .medium)
                 .foregroundStyle(Palette.textPrimary)
             Text(model.status.detail)
-                .font(.system(size: 11))
+                .scaledFont(11)
                 .foregroundStyle(Palette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -162,9 +162,9 @@ struct DataCard: View {
     private func label(_ title: String, _ symbol: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
         }
         .foregroundStyle(Palette.bg)
         .padding(.horizontal, 12)
@@ -180,9 +180,9 @@ struct DataCard: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "trash")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                     Text("Delete local history")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                 }
                 .foregroundStyle(Palette.bad)
                 .padding(.horizontal, 12)
@@ -193,7 +193,7 @@ struct DataCard: View {
 
             if case .demo = store.connection {
                 Text("Demo mode will regenerate sample days straight after, since that is what the UI is being reviewed with.")
-                    .font(.system(size: 11))
+                    .scaledFont(11)
                     .foregroundStyle(Palette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }

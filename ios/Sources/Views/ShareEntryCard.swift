@@ -16,7 +16,7 @@ struct ShareEntryCard: View {
                     CardHeaderRow(title: "Share", symbol: "square.and.arrow.up",
                                   tint: Palette.sleep)
                     Text("Day, scores-only, training, week and month cards. Export a PNG for any of them.")
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(Palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                     PillButton(title: "Choose a format", symbol: "photo", tint: Palette.sleep)

@@ -84,14 +84,18 @@ struct PeriodView: View {
     private var picker: some View {
         SegmentedScale(labels: Window.allCases.map(\.rawValue),
                        active: Window.allCases.firstIndex(of: window) ?? 0,
-                       tint: Palette.sleep)
-            .onTapGesture {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    window = Window.allCases[Window.allCases.firstIndex(of: window) == 0
-                                             ? 1 : 0]
-                }
-                Haptics.select()
-            }
+                       tint: Palette.sleep) { index in
+            apply(index)
+        }
+        .accessibilityLabel("Period")
+    }
+
+    private func apply(_ index: Int) {
+        guard Window.allCases.indices.contains(index) else { return }
+        let next = Window.allCases[index]
+        guard next != window else { return }
+        withAnimation(.easeOut(duration: 0.18)) { window = next }
+        Haptics.select()
     }
 
     // MARK: - Verdict
@@ -101,22 +105,22 @@ struct PeriodView: View {
             VStack(alignment: .leading, spacing: 12) {
                 CapsLabel(text: summary.coverageNote)
                 Text(summary.verdict)
-                    .font(.system(size: 34, weight: .regular, design: .serif))
+                    .scaledFont(34, weight: .regular, design: .serif)
                     .foregroundStyle(Palette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if !summary.hasEnoughData {
                     Text("At least \(PeriodSummary.minimumDays) days are needed before an average says anything. Showing what exists so far.")
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(Palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if let weak = summary.weakest {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.circle.fill")
-                            .font(.system(size: 12))
+                            .scaledFont(12)
                             .foregroundStyle(Palette.warn)
                         Text("\(weak.title) is the weak spot, averaging \(weak.value).")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(Palette.textSecondary)
                     }
                 }
@@ -151,16 +155,16 @@ struct PeriodView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(title)
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .foregroundStyle(Palette.textPrimary)
                 Spacer()
                 if let mean = spread.mean {
                     Text("\(mean)")
-                        .font(.system(size: 26, weight: .medium, design: .serif))
+                        .scaledFont(26, weight: .medium, design: .serif)
                         .foregroundStyle(tint)
                 } else {
                     Text("—")
-                        .font(.system(size: 26, weight: .regular, design: .serif))
+                        .scaledFont(26, weight: .regular, design: .serif)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -188,15 +192,23 @@ struct PeriodView: View {
     private func label(_ value: String, _ caption: String) -> some View {
         HStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .scaledFont(12, weight: .semibold, design: .rounded)
                 .foregroundStyle(Palette.textPrimary)
             Text(caption)
-                .font(.system(size: 10))
+                .scaledFont(10)
                 .foregroundStyle(Palette.textTertiary)
         }
     }
 
     // MARK: - Heatmap
+
+    private func applyMetric(_ index: Int) {
+        let all = CalendarHeatmap.Metric.allCases
+        guard all.indices.contains(index), all[index] != metric else { return }
+        withAnimation(.easeOut(duration: 0.18)) { metric = all[index] }
+        Haptics.select()
+    }
+
 
     private var heatmapCard: some View {
         GlowCard(tint: metric.tint) {
@@ -206,15 +218,10 @@ struct PeriodView: View {
                 SegmentedScale(labels: CalendarHeatmap.Metric.allCases.map(\.title),
                                active: CalendarHeatmap.Metric.allCases
                                    .firstIndex(of: metric) ?? 0,
-                               tint: metric.tint)
-                    .onTapGesture {
-                        let all = CalendarHeatmap.Metric.allCases
-                        let index = all.firstIndex(of: metric) ?? 0
-                        withAnimation(.easeOut(duration: 0.18)) {
-                            metric = all[(index + 1) % all.count]
-                        }
-                        Haptics.select()
-                    }
+                               tint: metric.tint) { index in
+                    applyMetric(index)
+                }
+                    .accessibilityLabel("Calendar metric")
 
                 CalendarHeatmap(days: store.orderedDays, goals: store.goals,
                                 baseline: store.baseline, metric: metric,
@@ -248,7 +255,7 @@ struct PeriodView: View {
             IconBadge(symbol: "calendar", tint: metric.tint, size: 30)
             VStack(alignment: .leading, spacing: 1) {
                 Text(monthName)
-                    .font(.system(size: 15, weight: .medium))
+                    .scaledFont(15, weight: .medium)
                     .foregroundStyle(Palette.textPrimary)
                 CapsLabel(text: heatmapDayCount > 0
                           ? "\(heatmapDayCount) \(metric.title.uppercased()) DAYS"
@@ -289,7 +296,7 @@ struct PeriodView: View {
             Haptics.select()
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .bold))
+                .scaledFont(12, weight: .bold)
                 .foregroundStyle(enabled ? Palette.textSecondary : Palette.stroke)
                 .frame(width: 30, height: 26)
                 .background(Palette.surfaceHi, in: RoundedRectangle(cornerRadius: 8,
@@ -330,7 +337,7 @@ struct PeriodView: View {
                     }
                 } else {
                     Text("Not enough days yet.")
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -342,15 +349,15 @@ struct PeriodView: View {
                             _ caption: String?) -> some View {
         HStack {
             Text(title)
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(Palette.textSecondary)
             Spacer()
             Text(value ?? "—")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .scaledFont(15, weight: .semibold, design: .rounded)
                 .foregroundStyle(value == nil ? Palette.textTertiary : Palette.textPrimary)
             if let caption {
                 Text(caption)
-                    .font(.system(size: 10))
+                    .scaledFont(10)
                     .foregroundStyle(Palette.textTertiary)
                     .frame(width: 92, alignment: .trailing)
             }
@@ -376,10 +383,10 @@ struct PeriodView: View {
     private func bigStat(_ value: String, _ caption: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.system(size: 24, weight: .medium, design: .serif))
+                .scaledFont(24, weight: .medium, design: .serif)
                 .foregroundStyle(Palette.textPrimary)
             Text(caption)
-                .font(.system(size: 10))
+                .scaledFont(10)
                 .foregroundStyle(Palette.textTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -390,7 +397,7 @@ struct PeriodView: View {
 
     private var footer: some View {
         Text("Averages cover only the days that recorded each metric, so a missing night never counts as zero. Scores are this app's own model.")
-            .font(.system(size: 11))
+            .scaledFont(11)
             .foregroundStyle(Palette.textTertiary)
             .fixedSize(horizontal: false, vertical: true)
     }

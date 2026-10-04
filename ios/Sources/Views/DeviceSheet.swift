@@ -30,12 +30,12 @@ struct DeviceSheet: View {
         .safeAreaInset(edge: .top) {
             HStack {
                 Text("Ring")
-                    .font(.metric(19))
+                    .scaledFont(19, weight: .semibold, design: .rounded)
                     .foregroundStyle(Palette.textPrimary)
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 22))
+                        .scaledFont(22)
                         .foregroundStyle(Palette.textTertiary)
                 }
                 .buttonStyle(.plain)
@@ -63,20 +63,20 @@ struct DeviceSheet: View {
                 HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(store.ringName)
-                            .font(.metric(19))
+                            .scaledFont(19, weight: .semibold, design: .rounded)
                             .foregroundStyle(Palette.textPrimary)
                         Text(store.connection.label)
-                            .font(.label(13))
+                            .scaledFont(13, weight: .medium)
                             .foregroundStyle(store.connection.isLive ? Palette.good : Palette.textSecondary)
                     }
                     Spacer()
                     if let b = store.batteryPercent {
                         VStack(spacing: 4) {
                             Text("\(b)%")
-                                .font(.score(22))
+                                .scaledFont(22, weight: .bold, design: .rounded)
                                 .foregroundStyle(batteryTint(b))
                             Text("battery")
-                                .font(.system(size: 9, weight: .medium))
+                                .scaledFont(9, weight: .medium)
                                 .foregroundStyle(Palette.textTertiary)
                         }
                     }
@@ -86,12 +86,12 @@ struct DeviceSheet: View {
                 }
                 if let fw = store.firmware {
                     Text("Firmware \(fw)")
-                        .font(.label(11))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
                 if let sync = store.lastSync {
                     Text("Last sync \(sync.formatted(date: .omitted, time: .shortened))")
-                        .font(.label(11))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -103,7 +103,7 @@ struct DeviceSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionHeader(title: "Demo data", icon: "wand.and.stars", tint: Palette.temp)
                 Text("Showing generated history. This build defaults to demo mode because the SDK ships arm64 device-only — no simulator slice. Pair a ring below and the same UI fills with real data.")
-                    .font(.label(12))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -126,7 +126,7 @@ struct DeviceSheet: View {
                 }
                 if found.isEmpty {
                     Text("No rings yet. Tap Scan and keep the ring within a metre, awake and out of the charger.")
-                        .font(.label(12))
+                        .scaledFont(12, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
@@ -137,9 +137,9 @@ struct DeviceSheet: View {
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(ring.name).font(.metric(15)).foregroundStyle(Palette.textPrimary)
+                                    Text(ring.name).scaledFont(15, weight: .semibold, design: .rounded).foregroundStyle(Palette.textPrimary)
                                     Text(ring.subtitle)
-                                        .font(.system(size: 11))
+                                        .scaledFont(11)
                                         .foregroundStyle(Palette.textTertiary)
                                 }
                                 Spacer()
@@ -164,7 +164,7 @@ struct DeviceSheet: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: "Sensor stream", icon: "waveform.path")
                 Text("The ring holds steps, sleep and heart-rate history on-device but has no 'fetch history' command — it only uploads while this switch is on. This is the switch.")
-                    .font(.label(12))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
@@ -182,7 +182,7 @@ struct DeviceSheet: View {
                     HStack(spacing: 6) {
                         Circle().fill(Palette.good).frame(width: 7, height: 7)
                         Text("Uploading — keep the app in the foreground")
-                            .font(.label(12))
+                            .scaledFont(12, weight: .medium)
                             .foregroundStyle(Palette.good)
                     }
                 }
@@ -199,20 +199,20 @@ struct DeviceSheet: View {
                 ForEach(VitalKind.allCases) { kind in
                     HStack {
                         Image(systemName: kind.symbol)
-                            .font(.system(size: 14))
+                            .scaledFont(14)
                             .foregroundStyle(kind.tint)
                             .frame(width: 22)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(kind.title).font(.metric(14)).foregroundStyle(Palette.textPrimary)
+                            Text(kind.title).scaledFont(14, weight: .semibold, design: .rounded).foregroundStyle(Palette.textPrimary)
                             Text(kind.sdkCommand)
-                                .font(.system(size: 10, design: .monospaced))
+                                .scaledFont(10, design: .monospaced)
                                 .foregroundStyle(Palette.textTertiary)
                         }
                         Spacer()
                         Button("Take") {
                             store.onLog?("→ measure \(kind.title) via \(kind.sdkCommand)")
                         }
-                        .font(.label(12))
+                        .scaledFont(12, weight: .medium)
                         .buttonStyle(.bordered)
                         .tint(kind.tint)
                     }
@@ -252,13 +252,13 @@ struct DeviceSheet: View {
                     SectionHeader(title: "Packet console", icon: "terminal")
                     Spacer()
                     Button(showConsole ? "Hide" : "Show") { showConsole.toggle() }
-                        .font(.label(12))
+                        .scaledFont(12, weight: .medium)
                         .buttonStyle(.bordered)
                 }
                 if showConsole {
                     ScrollView {
                         Text(lines.suffix(120).joined(separator: "\n"))
-                            .font(.system(size: 10, design: .monospaced))
+                            .scaledFont(10, design: .monospaced)
                             .foregroundStyle(Palette.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -267,7 +267,7 @@ struct DeviceSheet: View {
                     .background(Palette.bg, in: RoundedRectangle(cornerRadius: 10))
                 }
                 Text("Raw BLE frames are also written to Documents/captures as JSONL — pull them from the Files app.")
-                    .font(.label(11))
+                    .scaledFont(11, weight: .medium)
                     .foregroundStyle(Palette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -280,7 +280,7 @@ struct DeviceSheet: View {
 
     private func button(_ title: String, tone: Tone = .primary, action: @escaping () -> Void) -> some View {
         Button(title) { action() }
-            .font(.label(13))
+            .scaledFont(13, weight: .medium)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 9)
             .background(bg(tone), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -306,10 +306,10 @@ struct DeviceSheet: View {
     private func stepper(_ label: String, value: Binding<Int>, range: ClosedRange<Int>,
                          step: Int, unit: String) -> some View {
         HStack {
-            Text(label).font(.label(13)).foregroundStyle(Palette.textSecondary)
+            Text(label).scaledFont(13, weight: .medium).foregroundStyle(Palette.textSecondary)
             Spacer()
             Text(unit.isEmpty ? "\(value.wrappedValue)" : "\(value.wrappedValue) \(unit)")
-                .font(.metric(15))
+                .scaledFont(15, weight: .semibold, design: .rounded)
                 .foregroundStyle(Palette.textPrimary)
             Stepper(label, value: value, in: range, step: step)
                 .labelsHidden()

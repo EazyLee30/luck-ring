@@ -128,7 +128,7 @@ indicator, hatched bar, editorial card. Patterns, not a traced copy.
 <tr>
 <td>
 
-**135 unit tests**
+**151 unit tests**
 <br><br>
 Score bounds swept across the input space, monotonicity, degenerate input, and
 sleep-session assembly — the two places real bugs hid.
@@ -216,7 +216,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 135 tests, with 0 failures
+Executed 151 tests, with 0 failures
 ```
 
 Writing them found four real bugs, all now fixed with regression tests:
@@ -301,8 +301,9 @@ ios/
     Shared/AppGroup.swift       widget snapshot + CSV export
     Shared/HealthExport.swift   Apple Health seam for both targets
     Shared/PeriodSummary.swift  week/month aggregation, with coverage
+    Shared/Accessibility.swift  Dynamic Type scale, motion, chart descriptions
   Widget/                      home-screen widget (4 families)
-  Tests/                       135 cases across 8 suites
+  Tests/                       151 cases across 9 suites
 scripts/make-readme-assets.py  regenerates the banner and screenshot tiles
 SDK/                           vendor docs, headers and demo project
 ```
@@ -321,6 +322,30 @@ SDK/                           vendor docs, headers and demo project
 - Scans are filtered on `version > 4 || isPairedSystem`, same as the vendor demo.
 - The ring does not report REM as a distinct stage; `SleepStage.rem` exists in
   the model but the device never sends it.
+
+## Accessibility
+
+- **Dynamic Type.** `.font(.system(size:))` does not respond to the text-size
+  setting, so all 186 call sites were moved to `scaledFont(_:weight:design:)`,
+  which multiplies by one factor injected at the root. The factor is capped at
+  1.35× and never drops below 1: the cards, gauges and calendar cells are fixed
+  geometry that breaks in both directions. The policy lives in
+  `TypeScale.factor(forBodySize:)` and is unit tested, including against the real
+  `UIFont` sizes at each category.
+- **Reduce Motion.** A root transaction drops implicit animations when the setting
+  is on; `Motion.with(_:_:)` does the same for the explicit ones. State still
+  changes — only the animation goes.
+- **Charts and gauges.** A sparkline, a trend chart and a 270° arc are geometry, so
+  VoiceOver read nothing at all. Each now carries a spoken description of its shape
+  (`ChartDescription`), and the wording is unit tested.
+- **Controls.** `SegmentedScale` is a single adjustable element with a selected
+  trait, so swipe-up and swipe-down move through it the way a native segmented
+  control does. Metric badge titles wrap to two lines instead of clipping at large
+  text sizes.
+
+Two files are deliberately excluded from the scaling: `ShareCard.swift` and
+`ShareTemplateView.swift` render to fixed 1080px bitmaps, where the type size is a
+property of the output image rather than of the user's settings.
 
 ## Building the device target
 
@@ -344,6 +369,7 @@ to the App ID, regenerate the profile, and the device build signs. Everything el
 - [x] CSV export, storage accounting, local deletion
 - [x] Home-screen widget
 - [x] Week and month screens with a calendar heatmap
+- [x] Dynamic Type, Reduce Motion, and spoken chart descriptions
 - [ ] Standalone BLE client that skips the vendor framework entirely
 - [ ] iCloud sync of history between devices
 - [ ] Ring-specific metrics once the firmware reveals them

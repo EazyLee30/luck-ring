@@ -24,6 +24,7 @@ struct RootTabView: View {
 
     var body: some View {
         content
+            .accessibilityEnvironment()
             .task {
                 // A sheet whose binding is already true on the first render is not
                 // reliably presented, so the launch argument is applied one tick
@@ -170,15 +171,15 @@ struct QuickActionsSheet: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: item.symbol)
-                                .font(.system(size: 14, weight: .medium))
+                                .scaledFont(14, weight: .medium)
                                 .foregroundStyle(Palette.sleep)
                                 .frame(width: 26)
                             Text(item.label)
-                                .font(.system(size: 15))
+                                .scaledFont(15)
                                 .foregroundStyle(Palette.textPrimary)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .bold))
+                                .scaledFont(11, weight: .bold)
                                 .foregroundStyle(Palette.textTertiary)
                         }
                         .padding(.vertical, 13)

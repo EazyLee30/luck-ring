@@ -44,7 +44,7 @@ struct ExpandableCard<Content: View>: View {
                         }
                         VStack(alignment: .leading, spacing: 1) {
                             Text(title)
-                                .font(.system(size: 15, weight: .medium))
+                                .scaledFont(15, weight: .medium)
                                 .foregroundStyle(Palette.textPrimary)
                             if let status {
                                 CapsLabel(text: status, tint: tint, size: 9)
@@ -52,7 +52,7 @@ struct ExpandableCard<Content: View>: View {
                         }
                         Spacer(minLength: 4)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
+                            .scaledFont(11, weight: .bold)
                             .foregroundStyle(Palette.textTertiary)
                             .rotationEffect(.degrees(expanded ? 90 : 0))
                     }

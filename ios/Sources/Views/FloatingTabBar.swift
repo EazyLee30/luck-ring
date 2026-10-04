@@ -36,9 +36,9 @@ struct FloatingTabBar: View {
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: symbol)
-                    .font(.system(size: 15, weight: .medium))
+                    .scaledFont(15, weight: .medium)
                 Text(title)
-                    .font(.system(size: 9, weight: .semibold))
+                    .scaledFont(9, weight: .semibold)
             }
             .foregroundStyle(isSelected ? Palette.textPrimary : Palette.textTertiary)
             .frame(maxWidth: .infinity)
@@ -60,7 +60,7 @@ struct FloatingTabBar: View {
     private var actionButton: some View {
         Button(action: action) {
             Image(systemName: "plus")
-                .font(.system(size: 17, weight: .bold))
+                .scaledFont(17, weight: .bold)
                 .foregroundStyle(Palette.bg)
                 .frame(width: 46, height: 46)
                 .background(Palette.textPrimary, in: Circle())

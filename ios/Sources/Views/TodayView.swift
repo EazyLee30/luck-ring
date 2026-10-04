@@ -53,7 +53,7 @@ struct TodayView: View {
         HStack(alignment: .center) {
             Button { showDevice = true } label: {
                 Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 17, weight: .medium))
+                    .scaledFont(17, weight: .medium)
                     .foregroundStyle(Palette.textPrimary)
             }
             .buttonStyle(.plain)
@@ -62,7 +62,7 @@ struct TodayView: View {
             Spacer()
 
             Text("LUCK RING")
-                .font(.system(size: 15, weight: .medium))
+                .scaledFont(15, weight: .medium)
                 .tracking(2.4)
                 .foregroundStyle(Palette.textPrimary)
 
@@ -73,7 +73,7 @@ struct TodayView: View {
             HStack(spacing: 16) {
                 Button { showShare = true } label: {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 17, weight: .medium))
+                        .scaledFont(17, weight: .medium)
                         .foregroundStyle(Palette.textPrimary)
                 }
                 .buttonStyle(.plain)
@@ -82,11 +82,11 @@ struct TodayView: View {
                 Button { showDevice = true } label: {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "circle.dotted.circle")
-                        .font(.system(size: 18, weight: .medium))
+                        .scaledFont(18, weight: .medium)
                         .foregroundStyle(Palette.textPrimary)
                     if let b = store.batteryPercent {
                         Text("\(b)")
-                            .font(.system(size: 8, weight: .bold))
+                            .scaledFont(8, weight: .bold)
                             .foregroundStyle(Palette.bg)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
@@ -126,7 +126,7 @@ struct TodayView: View {
                     .foregroundStyle(Palette.textPrimary)
 
                 Text(heroCopy(for: verdict))
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .foregroundStyle(Palette.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
@@ -191,10 +191,10 @@ struct TodayView: View {
                             IconBadge(symbol: item.symbol, tint: item.tint, size: 28)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.title)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .scaledFont(14, weight: .medium)
                                     .foregroundStyle(Palette.textPrimary)
                                 Text(item.detail)
-                                    .font(.system(size: 12))
+                                    .scaledFont(12)
                                     .foregroundStyle(Palette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -239,7 +239,7 @@ struct TodayView: View {
                     HStack(spacing: 8) {
                         Circle().fill(Palette.activity).frame(width: 7, height: 7)
                         Text("\(active.kind.title) in progress · \(Fmt.duration(active.duration))")
-                            .font(.system(size: 12, weight: .medium))
+                            .scaledFont(12, weight: .medium)
                             .foregroundStyle(Palette.activity)
                     }
                 }
@@ -258,10 +258,10 @@ struct TodayView: View {
     private func miniMetric(_ title: String, _ value: String, _ tint: Color) -> some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 19, weight: .semibold, design: .rounded))
+                .scaledFont(19, weight: .semibold, design: .rounded)
                 .foregroundStyle(Palette.textPrimary)
             Text(title)
-                .font(.system(size: 9, weight: .medium))
+                .scaledFont(9, weight: .medium)
                 .foregroundStyle(Palette.textTertiary)
         }
         .frame(maxWidth: .infinity)
@@ -355,7 +355,7 @@ struct TodayView: View {
                 }
 
                 Text(verdict.detail)
-                    .font(.system(size: 13))
+                    .scaledFont(13)
                     .foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -434,7 +434,7 @@ struct TodayView: View {
                               unit: Fmt.distanceUnit(a.distanceMetres))
                 } else {
                     Text("No movement data yet for this day.")
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
@@ -495,7 +495,7 @@ struct TodayView: View {
 
                 if events.isEmpty {
                     Text("Nothing recorded for this day yet.")
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(Palette.textTertiary)
                 } else {
                     VStack(spacing: 0) {
@@ -514,15 +514,15 @@ struct TodayView: View {
                                 VStack(alignment: .leading, spacing: 1) {
                                     HStack {
                                         Text(event.title)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .scaledFont(14, weight: .medium)
                                             .foregroundStyle(Palette.textPrimary)
                                         Spacer()
                                         Text(Fmt.clock(event.time))
-                                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                            .scaledFont(11, weight: .medium, design: .monospaced)
                                             .foregroundStyle(Palette.textTertiary)
                                     }
                                     Text(event.detail)
-                                        .font(.system(size: 11))
+                                        .scaledFont(11)
                                         .foregroundStyle(Palette.textSecondary)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
@@ -553,7 +553,7 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 12) {
                 CardHeaderRow(title: "No data yet", symbol: "circle.dotted.circle")
                 Text("Open the ring settings to pair your ring, then pull down to refresh. History the ring already holds is uploaded once the sensor switch is on.")
-                    .font(.system(size: 13))
+                    .scaledFont(13)
                     .foregroundStyle(Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 PillButton(title: "Pair a ring", symbol: "circle.dotted.circle", tint: Palette.sleep)

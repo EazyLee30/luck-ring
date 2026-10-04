@@ -21,7 +21,7 @@ struct VitalsView: View {
                     trendSection()
                 } else {
                     Text("No data for the selected day.")
-                        .font(.label(13))
+                        .scaledFont(13, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                         .padding(.top, 40)
                 }
@@ -130,7 +130,7 @@ struct VitalsView: View {
             GlowCard(tint: Palette.readiness) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(ScoreVerdict.readiness(score?.total ?? 0).detail)
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(Palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -244,11 +244,11 @@ struct VitalsView: View {
                         MetricRow(title: "Pulse pressure",
                                   value: "\(bp.systolic - bp.diastolic)", unit: "mmHg")
                         Text("Measured \(Fmt.dayTitle(bp.time)) at \(Fmt.clock(bp.time))")
-                            .font(.label(11))
+                            .scaledFont(11, weight: .medium)
                             .foregroundStyle(Palette.textTertiary)
                     } else {
                         Text("No blood-pressure reading for this day.")
-                            .font(.label(12))
+                            .scaledFont(12, weight: .medium)
                             .foregroundStyle(Palette.textTertiary)
                     }
                 }
@@ -278,11 +278,11 @@ struct VitalsView: View {
                             Spacer()
                             Text(Fmt.dayTick(points.last!.day.date))
                         }
-                        .font(.system(size: 10, weight: .medium))
+                        .scaledFont(10, weight: .medium)
                         .foregroundStyle(Palette.textTertiary)
                     } else {
                         Text("Need at least two days of data.")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(Palette.textTertiary)
                     }
                 }
@@ -297,7 +297,7 @@ struct VitalsView: View {
     private func missingCard(_ text: String) -> some View {
         GlowCard {
             Text(text)
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(Palette.textTertiary)
                 .padding(16)
         }

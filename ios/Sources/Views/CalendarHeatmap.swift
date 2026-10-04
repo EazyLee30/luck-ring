@@ -112,7 +112,7 @@ struct CalendarHeatmap: View {
             HStack(spacing: 4) {
                 ForEach(weekdayInitials, id: \.self) { Text($0) }
             }
-            .font(.system(size: 9, weight: .semibold))
+            .scaledFont(9, weight: .semibold)
             .foregroundStyle(Palette.textTertiary)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4),
@@ -187,7 +187,7 @@ struct CalendarHeatmap: View {
                 // Only the day number, only when there is something behind it.
                 if value != nil || isToday {
                     Text(calendar.component(.day, from: date).description)
-                        .font(.system(size: 9, weight: isToday ? .bold : .medium))
+                        .scaledFont(9, weight: isToday ? .bold : .medium)
                         .foregroundStyle(value.map { $0 > 62 ? Palette.bg
                                                              : Palette.textPrimary }
                                          ?? Palette.textTertiary)
@@ -224,16 +224,16 @@ struct CalendarHeatmap: View {
 
     private var legend: some View {
         HStack(spacing: 6) {
-            Text("Lower").font(.system(size: 9)).foregroundStyle(Palette.textTertiary)
+            Text("Lower").scaledFont(9).foregroundStyle(Palette.textTertiary)
             ForEach([22, 42, 68, 92], id: \.self) { step in
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .fill(metric.tint.opacity(Double(step) / 100))
                     .frame(width: 16, height: 8)
             }
-            Text("Higher").font(.system(size: 9)).foregroundStyle(Palette.textTertiary)
+            Text("Higher").scaledFont(9).foregroundStyle(Palette.textTertiary)
             Spacer()
             Text("Bands at 55 · 70 · 85")
-                .font(.system(size: 9))
+                .scaledFont(9)
                 .foregroundStyle(Palette.textTertiary)
         }
     }
