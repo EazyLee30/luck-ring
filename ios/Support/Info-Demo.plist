@@ -28,5 +28,11 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- HealthKit export -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Luck Ring reads your existing health data to show trends alongside your ring readings.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Luck Ring writes your ring readings to Apple Health so other apps can use them.</string>
+
 </dict>
 </plist>

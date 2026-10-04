@@ -230,7 +230,8 @@ def build_banner(screens=("today-top", "vitals", "health")):
 
 
 def build_tiles():
-    for name in ["today-top", "today-detail", "sleep-detail", "vitals", "health"]:
+    for name in ["today-top", "today-detail", "sleep-detail", "vitals", "health",
+                 "data"]:
         shot = load_screen(name, 420)
         shot.save(os.path.join(OUT, name + ".png"), optimize=True)
         print("wrote docs/images/%s.png" % name)

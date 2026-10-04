@@ -27,9 +27,9 @@
 |:---:|:---:|:---:|
 | <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/sleep-detail.png" width="230"> | <img src="docs/images/vitals.png" width="230"> |
 
-| My Health | | |
+| My Health | Your data | |
 |:---:|:---:|:---:|
-| <img src="docs/images/health.png" width="230"> | | |
+| <img src="docs/images/health.png" width="230"> | <img src="docs/images/data.png" width="230"> | |
 
 </div>
 
@@ -124,7 +124,7 @@ indicator, hatched bar, editorial card. Patterns, not a traced copy.
 <tr>
 <td>
 
-**90 unit tests**
+**114 unit tests**
 <br><br>
 Score bounds swept across the input space, monotonicity, degenerate input, and
 sleep-session assembly — the two places real bugs hid.
@@ -212,7 +212,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 90 tests, with 0 failures
+Executed 114 tests, with 0 failures
 ```
 
 Writing them found four real bugs, all now fixed with regression tests:
@@ -294,7 +294,10 @@ ios/
     Shared/DerivedMetrics.swift estimates, with caveats
     Shared/HistoryStore.swift   atomic JSON persistence
     Shared/MotionResearch.swift IMU findings + packet inspector
-  Tests/                       90 cases across 6 suites
+    Shared/AppGroup.swift       widget snapshot + CSV export
+    Shared/HealthExport.swift   Apple Health seam for both targets
+  Widget/                      home-screen widget (4 families)
+  Tests/                       114 cases across 7 suites
 scripts/make-readme-assets.py  regenerates the banner and screenshot tiles
 SDK/                           vendor docs, headers and demo project
 ```
@@ -314,12 +317,29 @@ SDK/                           vendor docs, headers and demo project
 - The ring does not report REM as a distinct stage; `SleepStage.rem` exists in
   the model but the device never sends it.
 
+## Building the device target
+
+The demo target builds and runs with no setup. The device target needs two
+capabilities enabled in your Apple Developer account before Xcode will sign it:
+
+| Capability | Why | Without it |
+|---|---|---|
+| HealthKit | Apple Health export | The button reports the framework as unavailable |
+| App Groups (`group.com.luckring.reader`) | the widget reads the app's snapshot | The widget shows placeholder data |
+
+`project.yml` already declares both in `Support/LuckRing.entitlements`. Add them
+to the App ID, regenerate the profile, and the device build signs. Everything else
+— BLE background streaming included — is configured in the spec.
+
 ## Roadmap
 
 - [x] Land the XCTest suites and run them in CI
-- [ ] Persist history to disk so data survives an app restart
+- [x] Persist history to disk so data survives an app restart
+- [x] HealthKit export
+- [x] CSV export, storage accounting, local deletion
+- [x] Home-screen widget
 - [ ] Standalone BLE client that skips the vendor framework entirely
-- [ ] HealthKit export
+- [ ] iCloud sync of history between devices
 - [ ] Ring-specific metrics once the firmware reveals them
       (`DATA_TYPE_HISTORY_TEMP`, `DATA_TYPE_SET_VALUABLE_ASSISTANT`)
 

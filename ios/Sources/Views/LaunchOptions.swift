@@ -48,3 +48,11 @@ extension RootTabView {
         }
     }
 }
+
+extension RootTabView {
+    /// `-openSheet device|share` presents one of the modal sheets on launch, so a
+    /// screenshot can reach a screen that otherwise needs a tap.
+    static var launchSheet: String? {
+        LaunchOption.value("-openSheet")?.lowercased()
+    }
+}

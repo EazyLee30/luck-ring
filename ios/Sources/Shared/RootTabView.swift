@@ -7,6 +7,7 @@ struct RootTabView: View {
     @State private var tab: Tab = Tab.fromLaunchArguments()
     @State private var showActions = false
     @State private var showDevice = false
+    @State private var showData = false
     /// Owned by the stack, not by Today. A path declared inside a scroll view
     /// and pushed from a child is the fragile version of this and silently did
     /// nothing on launch.
@@ -18,7 +19,32 @@ struct RootTabView: View {
         _store = StateObject(wrappedValue: store)
     }
 
+
     var body: some View {
+        content
+            .task {
+                // A sheet whose binding is already true on the first render is not
+                // reliably presented, so the launch argument is applied one tick
+                // later.
+                let requested = RootTabView.launchSheet
+                guard requested != nil else { return }
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                switch requested {
+                case "device":
+                    showActions = true
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    showDevice = true
+                case "data":
+                    showActions = true
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    showData = true
+                default:
+                    break
+                }
+            }
+    }
+
+    private var content: some View {
         ZStack(alignment: .bottom) {
             Palette.bg.ignoresSafeArea()
 
@@ -61,7 +87,8 @@ struct RootTabView: View {
         .animation(.easeOut(duration: 0.2), value: tab)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showActions) {
-            QuickActionsSheet(showDevice: $showDevice, showActions: $showActions)
+            QuickActionsSheet(store: store, showDevice: $showDevice,
+                              showData: $showData, showActions: $showActions)
         }
         .onAppear { store.start() }
     }
@@ -70,8 +97,11 @@ struct RootTabView: View {
 /// Bottom-right "+" menu. Mirrors the reference design's action affordance and
 /// gives the ring controls and the log a home outside the metric tabs.
 struct QuickActionsSheet: View {
+    let store: HealthStore
     @Binding var showDevice: Bool
+    @Binding var showData: Bool
     @Binding var showActions: Bool
+
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -83,17 +113,15 @@ struct QuickActionsSheet: View {
                 VStack(alignment: .leading, spacing: 18) {
                     group("Ring", [
                         .init(symbol: "circle.dotted.circle", label: "Pair and manage ring") { showDevice = true },
-                        .init(symbol: "waveform.path.ecg", label: "Start a measurement"),
-                        .init(symbol: "figure.run", label: "Log an activity"),
                     ])
                     group("Data", [
-                        .init(symbol: "square.and.arrow.up", label: "Export readings"),
-                        .init(symbol: "terminal", label: "Open packet console"),
+                        .init(symbol: "square.and.arrow.up", label: "Export and storage") { showData = true },
                     ])
                 }
                 .padding(18)
             }
             .background(Palette.bg.ignoresSafeArea())
+            .sheet(isPresented: $showData) { DataSheet(store: store) }
             .navigationTitle("Quick actions")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -7,6 +7,12 @@ import BluetoothLibrary
 struct LuckRingDeviceApp: App {
     @StateObject private var store = HealthStore(bridge: DeviceRingBridge())
 
+    init() {
+        // The shared UI reaches Apple Health through this registry rather than
+        // importing HealthKit, which the demo target does not link.
+        HealthKitExportBootstrap.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootTabView(store: store)

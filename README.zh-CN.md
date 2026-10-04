@@ -27,9 +27,9 @@
 |:---:|:---:|:---:|
 | <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/sleep-detail.png" width="230"> | <img src="docs/images/vitals.png" width="230"> |
 
-| 我的健康 | | |
+| 我的健康 | 你的数据 | |
 |:---:|:---:|:---:|
-| <img src="docs/images/health.png" width="230"> | | |
+| <img src="docs/images/health.png" width="230"> | <img src="docs/images/data.png" width="230"> |
 
 </div>
 
@@ -101,7 +101,7 @@ App 只跟戒指说话。
 <tr>
 <td>
 
-**90 个单元测试**
+**114 个单元测试**
 <br><br>
 分数边界全空间扫描、单调性、退化输入、睡眠会话装配 ——
 两个真 bug 就藏在这两处。
@@ -186,7 +186,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 90 tests, with 0 failures
+Executed 114 tests, with 0 failures
 ```
 
 写测试的过程揪出了 **4 个真 bug**，全部已修并补了回归测试：
@@ -268,7 +268,10 @@ ios/
     Shared/DerivedMetrics.swift 派生指标（带免责说明）
     Shared/HistoryStore.swift   原子写入的 JSON 持久化
     Shared/MotionResearch.swift IMU 结论 + 报文捕获器
-  Tests/                       6 个套件共 90 个用例
+    Shared/AppGroup.swift       widget 快照 + CSV 导出
+    Shared/HealthExport.swift   两个 target 共用的 HealthKit 接口
+  Widget/                      桌面小组件（4 种尺寸）
+  Tests/                       7 个套件共 114 个用例
 scripts/make-readme-assets.py  重新生成 banner 与截图
 SDK/                           厂商文档、头文件与 demo 工程
 ```
@@ -286,12 +289,24 @@ SDK/                           厂商文档、头文件与 demo 工程
 - 戒指不会把 REM 作为独立阶段上报 —— `SleepStage.rem` 在模型里存在，
   但设备从来不发这个值。
 
+## 真机 target 的构建前提
+
+demo target 无需任何配置。真机 target 需要在开发者账号里开两项能力：
+
+| 能力 | 用途 | 不开的后果 |
+|---|---|---|
+| HealthKit | 导出到 Apple Health | 按钮会如实显示框架不可用 |
+| App Groups（`group.com.luckring.reader`） | widget 读取 app 写的快照 | widget 只显示占位数据 |
+
+`project.yml` 已经在 `Support/LuckRing.entitlements` 里声明了两项。加到 App ID、
+重新生成描述文件，真机即可签名。其余部分（含 BLE 后台模式）配置都在 spec 里。
+
 ## 路线图
 
 - [x] 落地 XCTest 并接进 CI
 - [ ] 历史数据落盘，重启 App 后不丢
 - [ ] 完全绕开厂商 framework 的独立 BLE 客户端
-- [ ] 导出到 HealthKit
+- [x] 导出到 HealthKit
 - [ ] 等固件暴露更多戒指专属指标
       （`DATA_TYPE_HISTORY_TEMP`、`DATA_TYPE_SET_VALUABLE_ASSISTANT`）
 
