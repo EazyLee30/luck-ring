@@ -40,4 +40,7 @@ SDK/coolwearsdkdemo-main 6/sdkdemo/BluetoothLibrary.framework
 
 # Ring captures pulled off a device can contain personal health data.
 *.jsonl
-captures/
+# Python bytecode, from the README asset script and any tooling.
+__pycache__/
+*.pyc
+*.pyo
