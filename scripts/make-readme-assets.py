@@ -12,6 +12,7 @@ Screenshots come from the LuckRingDemo target, so they need no ring in range.
 
 import math
 import os
+import sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -302,7 +303,21 @@ def verify_readme_images():
     print("README images: %d tiles referenced by all %d READMEs" % (len(TILES), len(READMES)))
 
 
-if __name__ == "__main__":
+def main():
+    """Regenerate every asset, then verify the READMEs.
+
+    `--check` only verifies, which is what CI wants: it needs to know that the
+    committed images and the committed Markdown still agree, and rebuilding them on
+    a Linux runner cannot work anyway - the banner draws with system SF fonts that
+    only exist on macOS.
+    """
+    if "--check" in sys.argv:
+        verify_readme_images()
+        return
     build_banner()
     build_tiles()
     verify_readme_images()
+
+
+if __name__ == "__main__":
+    main()

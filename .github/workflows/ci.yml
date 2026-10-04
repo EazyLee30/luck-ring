@@ -140,5 +140,9 @@ jobs:
       - name: Install Pillow
         run: pip install --quiet Pillow
 
+      # --check verifies the committed Markdown against the committed images. The
+      # full script cannot run here: the banner is drawn with the macOS system SF
+      # fonts, so rebuilding on a Linux runner would fail on a missing font rather
+      # than on anything wrong with the repo.
       - name: Verify every README image resolves
-        run: python3 scripts/make-readme-assets.py
+        run: python3 scripts/make-readme-assets.py --check
