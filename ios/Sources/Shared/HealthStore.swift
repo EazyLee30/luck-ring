@@ -405,7 +405,9 @@ final class HealthStore: ObservableObject {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
-        for dayOffset in stride(from: 6, through: 0, by: -1) {
+        // 42 days, not 7: the week and month screens are only reviewable against a
+        // window that actually spans two calendar months.
+        for dayOffset in stride(from: DemoDay.historyDays - 1, through: 0, by: -1) {
             guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
             built.append(DemoDay.make(date: date, rng: &generator))
         }

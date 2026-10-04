@@ -44,6 +44,7 @@ extension RootTabView {
         case "activity": return .activity(today)
         case "readiness": return .readiness(today)
         case "vitals": return .vitals(today)
+        case "period": return .period
         default: return nil
         }
     }

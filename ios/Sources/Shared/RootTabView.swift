@@ -12,6 +12,8 @@ struct RootTabView: View {
     /// and pushed from a child is the fragile version of this and silently did
     /// nothing on launch.
     @State private var todayPath: [DetailRoute] = RootTabView.launchRoute.map { [$0] } ?? []
+    @State private var healthPath: [DetailRoute] = RootTabView.launchRoute == .period
+        ? [.period] : []
 
     enum Tab: Hashable { case today, vitals, health }
 
@@ -67,13 +69,24 @@ struct RootTabView: View {
                                 SleepDetailView(date: date, store: store)
                             case .training:
                                 WorkoutSheet(store: store)
+                            case .period:
+                                PeriodView(store: store)
                             }
                         }
                 }
             case .vitals:
                 NavigationStack { VitalsView(store: store) }
             case .health:
-                NavigationStack { HealthView(store: store) }
+                NavigationStack(path: $healthPath) {
+                    HealthView(store: store, path: $healthPath)
+                        .navigationDestination(for: DetailRoute.self) { route in
+                            switch route {
+                            case .period: PeriodView(store: store)
+                            default: TodayView(store: store, showDevice: .constant(false),
+                                               path: .constant([]))
+                            }
+                        }
+                }
             }
 
             // A pushed detail screen is a drill-down, not a tab: the bar comes
@@ -81,8 +94,8 @@ struct RootTabView: View {
             // every native navigation flow does.
             FloatingTabBar(selection: $tab) { showActions = true }
                 .padding(.bottom, 2)
-                .opacity(todayPath.isEmpty ? 1 : 0)
-                .allowsHitTesting(todayPath.isEmpty)
+                .opacity(todayPath.isEmpty && healthPath.isEmpty ? 1 : 0)
+                .allowsHitTesting(todayPath.isEmpty && healthPath.isEmpty)
         }
         .animation(.easeOut(duration: 0.2), value: tab)
         .preferredColorScheme(.dark)

@@ -27,9 +27,13 @@
 |:---:|:---:|:---:|
 | <img src="docs/images/today-top.png" width="230"> | <img src="docs/images/sleep-detail.png" width="230"> | <img src="docs/images/vitals.png" width="230"> |
 
-| My Health | Your data | |
+| My Health | Week & month | Month calendar |
 |:---:|:---:|:---:|
-| <img src="docs/images/health.png" width="230"> | <img src="docs/images/data.png" width="230"> | |
+| <img src="docs/images/health.png" width="230"> | <img src="docs/images/period.png" width="230"> | <img src="docs/images/period-calendar.png" width="230"> |
+
+| Your data | | |
+|:---:|:---:|:---:|
+| <img src="docs/images/data.png" width="230"> | | |
 
 </div>
 
@@ -124,7 +128,7 @@ indicator, hatched bar, editorial card. Patterns, not a traced copy.
 <tr>
 <td>
 
-**114 unit tests**
+**135 unit tests**
 <br><br>
 Score bounds swept across the input space, monotonicity, degenerate input, and
 sleep-session assembly — the two places real bugs hid.
@@ -212,7 +216,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 114 tests, with 0 failures
+Executed 135 tests, with 0 failures
 ```
 
 Writing them found four real bugs, all now fixed with regression tests:
@@ -296,8 +300,9 @@ ios/
     Shared/MotionResearch.swift IMU findings + packet inspector
     Shared/AppGroup.swift       widget snapshot + CSV export
     Shared/HealthExport.swift   Apple Health seam for both targets
+    Shared/PeriodSummary.swift  week/month aggregation, with coverage
   Widget/                      home-screen widget (4 families)
-  Tests/                       114 cases across 7 suites
+  Tests/                       135 cases across 8 suites
 scripts/make-readme-assets.py  regenerates the banner and screenshot tiles
 SDK/                           vendor docs, headers and demo project
 ```
@@ -338,6 +343,7 @@ to the App ID, regenerate the profile, and the device build signs. Everything el
 - [x] HealthKit export
 - [x] CSV export, storage accounting, local deletion
 - [x] Home-screen widget
+- [x] Week and month screens with a calendar heatmap
 - [ ] Standalone BLE client that skips the vendor framework entirely
 - [ ] iCloud sync of history between devices
 - [ ] Ring-specific metrics once the firmware reveals them

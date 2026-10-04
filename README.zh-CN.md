@@ -101,7 +101,7 @@ App 只跟戒指说话。
 <tr>
 <td>
 
-**114 个单元测试**
+**135 个单元测试**
 <br><br>
 分数边界全空间扫描、单调性、退化输入、睡眠会话装配 ——
 两个真 bug 就藏在这两处。
@@ -186,7 +186,7 @@ xcodebuild -project LuckRing.xcodeproj -scheme LuckRingDemo \
 ```
 
 ```
-Executed 114 tests, with 0 failures
+Executed 135 tests, with 0 failures
 ```
 
 写测试的过程揪出了 **4 个真 bug**，全部已修并补了回归测试：
@@ -270,8 +270,9 @@ ios/
     Shared/MotionResearch.swift IMU 结论 + 报文捕获器
     Shared/AppGroup.swift       widget 快照 + CSV 导出
     Shared/HealthExport.swift   两个 target 共用的 HealthKit 接口
+    Shared/PeriodSummary.swift  周/月聚合，附带数据覆盖率
   Widget/                      桌面小组件（4 种尺寸）
-  Tests/                       7 个套件共 114 个用例
+  Tests/                       8 个套件共 135 个用例
 scripts/make-readme-assets.py  重新生成 banner 与截图
 SDK/                           厂商文档、头文件与 demo 工程
 ```

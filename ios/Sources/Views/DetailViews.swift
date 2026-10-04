@@ -9,6 +9,7 @@ enum DetailRoute: Hashable {
     case readiness(Date)
     case vitals(Date)
     case training
+    case period
 
     var title: String {
         switch self {
@@ -17,6 +18,7 @@ enum DetailRoute: Hashable {
         case .readiness: return "Readiness"
         case .vitals: return "Vitals"
         case .training: return "Training"
+        case .period: return "Period"
         }
     }
 
@@ -27,6 +29,7 @@ enum DetailRoute: Hashable {
         case .readiness: return "bolt.heart.fill"
         case .vitals: return "waveform.path.ecg"
         case .training: return "figure.run"
+        case .period: return "calendar"
         }
     }
 }

@@ -4,6 +4,10 @@ import Foundation
 /// looks the same every launch, and shaped so the score engine has something
 /// interesting to chew on.
 enum DemoDay {
+    /// How much history the demo generates. Spans two calendar months so the
+    /// period screens have a real window to aggregate.
+    static let historyDays = 42
+
 
     static func make(date: Date, rng: inout SeededGenerator) -> DailySnapshot {
         var day = DailySnapshot(date: Calendar.current.startOfDay(for: date))

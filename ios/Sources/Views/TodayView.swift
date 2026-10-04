@@ -282,7 +282,8 @@ struct TodayView: View {
         return GlowCard(tint: Palette.sleep) {
             VStack(alignment: .leading, spacing: 15) {
                 CardHeaderRow(title: "Sleep", symbol: "bed.double.fill",
-                              status: verdict.title.uppercased(), tint: Palette.sleep)
+                              status: verdict.title.uppercased(), tint: Palette.sleep,
+                              showsChevron: true)
                     .onTapGesture {
                         path.append(.sleep(day.date))
                         Haptics.tap()
@@ -337,7 +338,8 @@ struct TodayView: View {
         return GlowCard(tint: Palette.readiness) {
             VStack(alignment: .leading, spacing: 15) {
                 CardHeaderRow(title: "Readiness", symbol: "bolt.heart.fill",
-                              status: verdict.title.uppercased(), tint: Palette.readiness)
+                              status: verdict.title.uppercased(), tint: Palette.readiness,
+                              showsChevron: true)
                     .onTapGesture {
                         path.append(.readiness(day.date))
                         Haptics.tap()
@@ -396,7 +398,8 @@ struct TodayView: View {
         return GlowCard(tint: Palette.activity) {
             VStack(alignment: .leading, spacing: 15) {
                 CardHeaderRow(title: "Activity goal", symbol: "flame.fill",
-                              status: verdict.title.uppercased(), tint: Palette.activity)
+                              status: verdict.title.uppercased(), tint: Palette.activity,
+                              showsChevron: true)
                     .onTapGesture {
                         path.append(.activity(day.date))
                         Haptics.tap()
@@ -446,7 +449,7 @@ struct TodayView: View {
         GlowCard {
             VStack(alignment: .leading, spacing: 13) {
                 CardHeaderRow(title: "Vitals", symbol: "waveform.path.ecg",
-                              tint: Palette.oxygen)
+                              tint: Palette.oxygen, showsChevron: true)
                     .onTapGesture {
                         path.append(.vitals(day.date))
                         Haptics.tap()

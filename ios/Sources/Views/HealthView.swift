@@ -4,6 +4,12 @@ import SwiftUI
 /// requirement, and shows the window that produced the rating.
 struct HealthView: View {
     @ObservedObject var store: HealthStore
+    @Binding var path: [DetailRoute]
+
+    init(store: HealthStore, path: Binding<[DetailRoute]> = .constant([])) {
+        _store = ObservedObject(wrappedValue: store)
+        _path = path
+    }
 
     private var areas: [HealthArea] { store.healthAreas }
 
@@ -11,6 +17,7 @@ struct HealthView: View {
         ScrollView {
             VStack(spacing: 18) {
                 overview
+                periodEntry
                 headline
 
                 Section(title: "Health areas",
@@ -33,6 +40,35 @@ struct HealthView: View {
         .refreshable { store.refresh() }
         .navigationTitle("My Health")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Week and month overviews live behind their own screen; the tab stays a
+    /// summary so it does not become a second Today.
+    private var periodEntry: some View {
+        Button { path.append(.period) } label: {
+            Card {
+                HStack(spacing: 14) {
+                    IconBadge(symbol: "calendar", tint: Palette.sleep, size: 34)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Week and month")
+                            .font(.metric(16))
+                            .foregroundStyle(Palette.textPrimary)
+                        Text(PeriodSummary.make(from: store.orderedDays, goals: store.goals,
+                                                baseline: store.baseline,
+                                                window: 7).coverageNote)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.textTertiary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.textTertiary)
+                }
+                .padding(16)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Summary arc

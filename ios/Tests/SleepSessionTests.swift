@@ -319,7 +319,9 @@ final class HealthStoreIngestionTests: XCTestCase {
     func testDemoDataSatisfiesInvariants() {
         let store = makeStore()
         store.loadDemoData()
-        XCTAssertEqual(store.days.count, 7)
+        // The count is a named constant now; asserting against it keeps this test
+        // about the invariants rather than about how much demo data exists.
+        XCTAssertEqual(store.days.count, DemoDay.historyDays)
         XCTAssertNotNil(store.baseline)
 
         for d in store.days {

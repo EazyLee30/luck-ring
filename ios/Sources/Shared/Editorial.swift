@@ -461,6 +461,9 @@ struct CardHeaderRow: View {
     var symbol: String?
     var status: String?
     var tint: Color = Palette.textSecondary
+    /// Opt-in, because a chevron on a card that does not navigate is a promise the
+    /// UI cannot keep. Only cards that push something set this.
+    var showsChevron: Bool = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -476,9 +479,11 @@ struct CardHeaderRow: View {
                 }
             }
             Spacer(minLength: 4)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Palette.textTertiary)
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Palette.textTertiary)
+            }
         }
     }
 }
